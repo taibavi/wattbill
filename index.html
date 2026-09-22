@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>WattBill IL – מחשבון חשבון חשמל</title>
+<style>
+  :root{
+    --bg:#eef2f5; --card:#fff; --ink:#1f2d3d; --muted:#6b7a8c; --line:#e2e8f0;
+    --brand:#0f766e; --brand-d:#115e59; --accent:#7c3aed; --ok:#16a34a; --warn:#d97706; --err:#dc2626;
+    --vat:#b45309; --est:#9333ea; --est-bg:#faf5ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,"Segoe UI",Arial,sans-serif;padding:8px 8px 40px;font-size:14px}
+  .wrap{max-width:1000px;margin:0 auto}
+  #view-hist,#view-train{max-width:560px;margin:0 auto}
+  /* פס עליון: שם + מעבר בין מסכים, קטן ולא בולט */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:8px 10px;
+          background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(15,35,60,.06);position:sticky;top:0;z-index:6}
+  .topbar b{font-size:15px;white-space:nowrap}
+  .topbar .nav{display:flex;gap:5px;margin:0;position:static;background:none;padding:0}
+  .topbar .nav button{flex:none;padding:6px 9px;font-size:11.5px}
+  @media(max-width:480px){ .topbar{padding:6px 7px} .topbar b{font-size:13px} .topbar .nav{gap:3px}
+    .topbar .nav button{padding:6px 6px;font-size:11px} .topbar .nm{display:none} }
+  @media(max-width:480px){ .kwh-hero{padding:6px;margin-top:8px} .kwh-hero .n{font-size:22px} }
+  /* מסך החישוב: במחשב שני טורים (קלט | תוצאה), בטלפון זה מתחת לזה */
+  html,body{overflow-x:hidden}
+  input,select{max-width:100%}
+  .calc-grid{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+  .calc-grid>*{min-width:0}
+  @media(min-width:760px){ .calc-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start} .calc-grid .card{margin:0} }
+  .q{font-size:14px;font-weight:800;color:var(--brand-d);margin-bottom:9px}
+  .seg2{display:grid;grid-template-columns:1fr 1fr;background:#f1f5f9;border-radius:10px;padding:3px;gap:3px;margin-bottom:11px}
+  .seg2 button{padding:10px 4px;font-size:13px;background:none;border:none;color:var(--muted);border-radius:8px}
+  .seg2 button.on{background:#fff;color:var(--brand-d);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+  .big-in{font-size:22px!important;font-weight:700;padding:11px!important;direction:ltr;text-align:left;width:100%;min-width:0}
+  .mf-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  .mf{min-width:0}
+  .mf label{font-size:11.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .mf label .tick{color:var(--ok);font-weight:800}
+  .mf .box{display:flex;border:1.5px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff}
+  .mf.ready .box{border-color:var(--ok)}
+  .mf .box input{border:none!important;border-radius:0!important;font-size:19px!important;font-weight:700;padding:10px 8px!important;
+                 direction:ltr;text-align:left;min-width:0;width:100%;flex:1 1 0;box-shadow:none!important;-moz-appearance:textfield}
+  .mf .box input::-webkit-outer-spin-button,.mf .box input::-webkit-inner-spin-button,
+  .big-in::-webkit-outer-spin-button,.big-in::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .mf .box button{flex:none;border:none;border-right:1px solid var(--line);background:#f8fafc;font-size:19px;padding:0 10px;cursor:pointer}
+  .mf .box button:hover{background:#ede9fe}
+  .setline{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px;padding:9px 10px;
+           border:1px dashed #cbd5e1;border-radius:10px;font-size:11.5px;color:var(--muted);cursor:pointer;background:#fbfdfe}
+  .setline b{color:var(--brand);white-space:nowrap}
+  #settings{margin-top:9px;border-top:1px solid var(--line);padding-top:9px}
+  #settings h4{font-size:12px;margin:4px 0 6px;color:var(--brand-d)}
+  .rows{margin-top:8px;border-top:1px solid var(--line)}
+  .rows>div{display:flex;justify-content:space-between;gap:8px;padding:7px 3px;border-bottom:1px solid var(--line);font-size:13px}
+  .rows .k{color:var(--muted)} .rows .v{direction:ltr;font-weight:700;white-space:nowrap}
+  .rows .hl{background:#f0fdfa;border-radius:7px;padding:9px 7px;font-weight:800}
+  .rows .off .v{color:var(--muted);font-weight:400;text-decoration:line-through}
+  .rows .tg{display:flex;align-items:center;gap:7px;cursor:pointer;margin:0;font-weight:400;font-size:13px}
+  .rows .tg input{width:18px;height:18px;accent-color:var(--brand);margin:0}
+  .rows .na .v{text-decoration:none;color:var(--brand);font-size:11.5px;cursor:pointer}
+  /* פס קבוע בתחתית הטלפון – מופיע רק כשכרטיס התוצאה לא נראה */
+  .sticky{position:fixed;bottom:0;left:0;right:0;z-index:7;background:var(--brand-d);color:#fff;display:flex;justify-content:space-around;
+          padding:9px 8px calc(9px + env(safe-area-inset-bottom));font-size:11.5px;text-align:center;
+          transform:translateY(110%);transition:transform .2s}
+  .sticky.show{transform:none}
+  .sticky b{display:block;font-size:17px;direction:ltr}
+  @media(min-width:760px){ .sticky{display:none} }
+  /* חלון פענוח תמונה */
+  .modal{position:fixed;inset:0;z-index:20;background:rgba(15,23,42,.55);display:flex;align-items:flex-end;justify-content:center}
+  @media(min-width:760px){ .modal{align-items:center} }
+  .sheet{background:#fff;width:100%;max-width:540px;max-height:94vh;overflow:auto;border-radius:16px 16px 0 0;padding:13px}
+  @media(min-width:760px){ .sheet{border-radius:16px} }
+  .sheet-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .sheet-h b{font-size:14px;color:var(--brand-d)}
+  .sheet-h button{background:#f1f5f9;border:none;border-radius:8px;padding:6px 11px;font-size:13px;cursor:pointer}
+  #live-wrap{position:fixed;inset:0;z-index:30;display:flex;flex-direction:column;justify-content:center;padding:12px;border-radius:0;margin:0}
+  #live-wrap.hidden{display:none}
+  .card{background:var(--card);border-radius:12px;padding:13px;margin-bottom:10px;box-shadow:0 2px 8px rgba(15,35,60,.07)}
+  h1{font-size:18px;margin:0;text-align:center}
+  .sub{font-size:10.5px;color:var(--muted);text-align:center;margin:2px 0 0}
+  .step{display:flex;align-items:center;gap:7px;margin:0 0 10px;padding-bottom:7px;border-bottom:1px solid var(--line)}
+  .step .num{background:var(--brand-d);color:#fff;width:21px;height:21px;border-radius:50%;
+             font-size:11.5px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none}
+  .step .txt{font-size:14px;font-weight:800;color:var(--brand-d)}
+  label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+  .hint{font-size:11px;color:var(--muted);font-weight:400;margin-top:3px;line-height:1.55}
+  input[type=date],input[type=number],input[type=text],select{
+    width:100%;padding:11px;font-size:16px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--ink)}
+  .row{display:flex;gap:7px}.row>*{flex:1}
+  .fld{margin-bottom:10px}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-weight:700}
+  .btn-ghost{background:#fff;color:var(--brand);border:1px solid var(--brand);padding:9px;font-size:12px}
+  .btn-danger{background:#fff;color:var(--err);border:1px solid var(--err);padding:9px;font-size:12px}
+  .seg{display:flex;gap:6px;margin-bottom:11px}
+  .seg button{flex:1;padding:11px 6px;font-size:12.5px;background:#fff;border:1px solid var(--brand);color:var(--brand)}
+  .seg button.on{background:var(--brand);color:#fff}
+  .hidden{display:none!important}
+
+  .nav{display:flex;gap:6px;margin-bottom:10px;position:sticky;top:0;z-index:5;background:var(--bg);padding:4px 0}
+  .nav button{flex:1;padding:11px;font-size:12.5px;background:#fff;color:var(--brand-d);
+              border:1px solid var(--line);box-shadow:0 1px 4px rgba(15,35,60,.06)}
+  .nav button.on{background:var(--brand-d);color:#fff;border-color:var(--brand-d)}
+
+  /* ---- כרטיס קריאת מונה, קומפקטי ---- */
+  .mtr{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:9px;background:#fbfdfe}
+  .mtr.ready{border-color:var(--ok);background:#f0fdf4}
+  .mtr-h{font-size:12.5px;font-weight:800;margin-bottom:7px;display:flex;justify-content:space-between;align-items:center}
+  .mtr-h .tick{font-size:11px;color:var(--ok);font-weight:700}
+  .imgrow{display:flex;gap:6px;margin-top:7px}
+  .filebtn{flex:1;display:block;text-align:center;background:var(--accent);color:#fff;padding:9px 4px;
+           border-radius:8px;font-size:11.5px;font-weight:700;cursor:pointer;user-select:none}
+  .filebtn.alt{background:#64748b}
+  .filebtn.sm{padding:10px;font-size:12.5px;background:#475569}
+  .dropzone{border:1px dashed #cbd5e1;border-radius:7px;padding:7px;text-align:center;
+            font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .dropzone.over{border-color:var(--accent);background:#faf5ff;color:var(--accent)}
+
+  /* ---- תוצאה ---- */
+  .hero{text-align:center;padding:4px 0 2px}
+  .hero .lbl{font-size:11.5px;color:var(--muted);font-weight:600}
+  .hero .big{font-size:34px;font-weight:800;color:var(--brand-d);direction:ltr;line-height:1.15;margin:2px 0}
+  .hero .sm{font-size:11.5px;color:var(--muted)}
+  .kwh-hero{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:10px;margin-top:10px;text-align:center}
+  .kwh-hero .n{font-size:27px;font-weight:800;color:var(--brand-d);direction:ltr}
+  .kwh-hero .l{font-size:11px;color:var(--muted);font-weight:600}
+  .kwh-hero.bad{background:#fef2f2;border-color:#fecaca}
+  .kwh-hero.bad .n{font-size:13px;color:var(--err);line-height:1.5}
+  .tri{display:flex;gap:6px;margin-top:11px}
+  .tri div{flex:1;background:#f8fafc;border-radius:8px;padding:8px 4px;text-align:center}
+  .tri .t{font-size:10px;color:var(--muted);font-weight:700}
+  .tri .v{font-size:13.5px;font-weight:800;direction:ltr;margin-top:2px}
+  .tri .v.vat{color:var(--vat)}
+
+  /* ---- טבלת המאגר ---- */
+  .reg{width:100%;border-collapse:collapse;font-size:11.5px}
+  .reg th{background:#f1f5f9;color:var(--muted);font-size:10px;font-weight:800;padding:6px 4px;
+          text-align:right;border-bottom:2px solid var(--line);position:sticky;top:0}
+  .reg td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
+  .reg td.d{direction:ltr;text-align:center;white-space:nowrap;font-size:11px;color:var(--muted)}
+  .reg td.c{direction:ltr;text-align:left;font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .reg tr.grp td{background:var(--brand-d);color:#fff;font-weight:800;font-size:12px;padding:7px 6px}
+  .reg tr.grp td span{font-weight:400;font-size:10px;opacity:.85}
+  .reg tr.now{background:#ecfdf5}
+  .reg tr.now td.c{color:var(--brand-d)}
+  .reg tr.est{background:var(--est-bg)}
+  .reg tr.bad{background:#fef2f2}
+  .reg a.s{color:#fff;background:var(--brand);border-radius:5px;padding:3px 7px;font-size:10px;
+           font-weight:700;text-decoration:none;white-space:nowrap}
+  .reg .x{background:none;color:var(--err);font-size:14px;padding:0 3px}
+  .tag{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;margin-right:3px}
+  .tag.now{background:#dcfce7;color:#166534}
+  .tag.est{background:#f3e8ff;color:var(--est)}
+  .tag.man{background:#fef3c7;color:#92400e}
+  .regnote{font-size:10.5px;color:var(--muted);line-height:1.5;padding:2px 4px 8px;border-bottom:1px solid var(--line)}
+
+  .pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
+  .pill.local{background:#fef3c7;color:#92400e}
+  .pill.live{background:#dcfce7;color:#166534}
+  .pill.err{background:#fee2e2;color:#991b1b}
+  .log{font-size:10.5px;color:var(--muted);margin-top:6px;line-height:1.6;white-space:pre-wrap;word-break:break-word;
+       max-height:170px;overflow:auto;background:#f8fafc;border-radius:6px;padding:7px}
+  .audit{border-radius:9px;padding:9px;margin-bottom:9px;font-size:11.5px;line-height:1.65}
+  .audit.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+  .audit.bad{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .warnbox{background:var(--est-bg);border:1px solid #d8b4fe;border-radius:8px;padding:9px;
+           font-size:11px;color:var(--est);line-height:1.6;margin-bottom:9px}
+  .envwarn{background:#fef2f2;border:2px solid var(--err);color:#991b1b;border-radius:10px;
+           padding:11px;font-size:12px;line-height:1.7;margin-bottom:10px}
+  .envwarn b{font-size:13px}
+
+  .cropper{background:#111827;border-radius:9px;padding:9px;margin-top:8px}
+  .cropper .tip{font-size:11.5px;color:#fbbf24;font-weight:700;margin-bottom:7px;text-align:center}
+  .viewport{position:relative;width:100%;height:200px;background:#000;overflow:hidden;border-radius:7px;border:2px solid var(--accent);touch-action:none}
+  .viewport img{position:absolute;left:0;top:0;max-width:none;transform-origin:top left;user-select:none;-webkit-user-drag:none}
+  .scanwin{position:absolute;top:50%;left:8%;right:8%;transform:translateY(-50%);border:2px dashed #ef4444;
+           box-shadow:0 0 0 999px rgba(0,0,0,.62);pointer-events:none}
+  .ctl{display:flex;align-items:center;gap:7px;margin-top:7px;color:#e5e7eb;font-size:10.5px}
+  .ctl input[type=range]{flex:1;accent-color:var(--accent)}
+  .crop-actions{display:flex;gap:7px;margin-top:7px}
+  .crop-actions button{flex:1;padding:10px;font-size:12.5px;color:#fff}
+  .b-go{background:var(--ok)} .b-no{background:#b91c1c}
+  .gate{border:2px solid var(--warn);background:#fffbeb;border-radius:9px;padding:9px;margin-top:8px}
+  .gate.done{border-color:var(--ok);background:#f0fdf4}
+  .gate-title{font-size:11.5px;font-weight:800;color:#92400e;margin-bottom:6px}
+  .gate.done .gate-title{color:#166534}
+  .dcells{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;direction:ltr}
+  .dcell{border:1px solid #cbd5e1;border-radius:6px;padding:3px;text-align:center;background:#fff;width:46px}
+  .dcell canvas{width:38px;height:auto;display:block;margin:0 auto;border-radius:3px}
+  .dcell .c{font-size:17px;font-weight:800;direction:ltr}
+  .dcell .k{font-size:9px;color:var(--muted);direction:ltr}
+  .dcell.low{border-color:var(--warn);background:#fff7ed}
+  .dcell.low .c{color:#c2410c}
+  .dcell.added{border-style:dashed}
+  .steps{margin:0 0 10px;padding:0 18px 0 0;font-size:12px;line-height:1.75}
+  .steps b{color:var(--brand)}
+  .dgrid{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;direction:ltr;margin:4px 0 6px}
+  .dgrid div{border:1px solid var(--line);border-radius:6px;text-align:center;padding:4px 0;background:#fff}
+  .dgrid .n{font-size:16px;font-weight:800}
+  .dgrid .k{font-size:9px;color:var(--muted)}
+  .dgrid .yes{background:#f0fdf4;border-color:#86efac}
+  .dgrid .yes .k{color:#166534;font-weight:700}
+  .dgrid .no{background:#fff7ed;border-color:#fdba74}
+  .guess{font-size:10.5px;color:var(--muted);text-align:center;margin-top:6px}
+  .ocr-out{font-size:24px;font-weight:800;letter-spacing:3px;text-align:center;direction:ltr;
+           background:#fff;border:1px dashed #cbd5e1;border-radius:6px;padding:5px;margin:7px 0}
+  .conf{font-size:10.5px;color:var(--muted);text-align:center;margin-bottom:6px}
+  .gate .row button{padding:10px;font-size:12.5px;color:#fff}
+  .b-ok{background:var(--ok)}
+  .locked{font-size:10.5px;color:var(--err);font-weight:700;margin-top:6px}
+
+  .bill{width:100%;border-collapse:collapse;font-size:11.5px}
+  .bill th{font-size:10px;color:var(--muted);font-weight:700;padding:5px 3px;border-bottom:2px solid var(--line);text-align:left}
+  .bill th:first-child{text-align:right}
+  .bill td{padding:6px 3px;border-bottom:1px solid var(--line);vertical-align:top}
+  .bill td.n{direction:ltr;text-align:left;font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bill td.n.v{color:var(--vat)}
+  .bill .comp{font-weight:700;font-size:12px}
+  .formula{font-size:10px;color:var(--muted);line-height:1.6;margin-top:3px;font-weight:400}
+  .formula code{direction:ltr;display:inline-block;background:#f1f5f9;border-radius:3px;padding:0 3px;font-size:9.5px}
+  .bill tr.sub td{background:#f8fafc;font-weight:700}
+  .bill tr.disc td{color:var(--ok)}
+  .bill tr.grand td{background:#ecfdf5;font-weight:800;font-size:14px;color:var(--brand-d);
+                    border-top:2px solid var(--brand);border-bottom:none}
+  .bill tr.vatline td{background:#fffbeb;color:var(--vat);font-weight:700}
+
+  details{margin-top:8px}
+  summary{font-size:12.5px;font-weight:800;color:var(--brand);cursor:pointer;padding:7px 0}
+  .src{font-size:10.5px;line-height:1.8;color:var(--muted)}
+  .src a{color:var(--brand);word-break:break-all}
+  .note{font-size:10.5px;background:#f8fafc;border-right:3px solid var(--brand);padding:8px;
+        border-radius:0 6px 6px 0;color:var(--muted);line-height:1.6;margin-top:8px}
+  .chk{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;margin-bottom:9px}
+  .chk input{width:18px;height:18px;accent-color:var(--brand)}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#115e59">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <b>⚡<span class="nm"> WattBill IL</span></b>
+    <div class="nav">
+      <button id="nav-calc" class="on" onclick="showView('calc')">🧮 חישוב</button>
+      <button id="nav-hist" onclick="showView('hist')">📋 תעריפים</button>
+      <button id="nav-train" onclick="showView('train')">🔢 לימוד מונה</button>
+    </div>
+  </div>
+
+  <!-- מצלמה חיה: שכבה על כל המסך, משותפת לחישוב וללימוד -->
+  <div id="live-wrap" class="card hidden" style="background:#111827">
+    <div style="color:#fbbf24;font-size:12px;font-weight:700;text-align:center;margin-bottom:7px">
+      כוון את המצלמה לספרות המונה ולחץ "צלם"
+    </div>
+    <video id="live-video" playsinline autoplay muted
+           style="width:100%;border-radius:8px;background:#000;max-height:70vh;object-fit:contain"></video>
+    <div class="crop-actions">
+      <button class="b-go" onclick="snapLive()">📸 צלם</button>
+      <button class="b-no" onclick="stopLive()">סגור מצלמה</button>
+    </div>
+  </div>
+
+<!-- ==================== חישוב ==================== -->
+<div id="view-calc">
+
+  <div id="env-warn"></div>
+
+  <div class="calc-grid">
+  <!-- ===== קלט ===== -->
+  <div class="card">
+    <div class="q">כמה חשמל נצרך?</div>
+    <div class="seg2">
+      <button id="m-kwh" class="on" onclick="setMode('kwh')">כמות קוט״ש</button>
+      <button id="m-meter" onclick="setMode('meter')">קריאות מונה</button>
+    </div>
+
+    <div id="sec-kwh">
+      <input type="number" id="kwh-direct" class="big-in" inputmode="decimal" placeholder="למשל 511" oninput="recalc()">
+    </div>
+
+    <div id="sec-meter" class="hidden">
+      <div class="mf-grid">
+        <div class="mf" id="mtr-prev">
+          <label for="man-prev"><span>קריאה קודמת</span><span class="tick" id="tick-prev"></span></label>
+          <div class="box"><input type="number" id="man-prev" size="1" inputmode="numeric" placeholder="מספר"
+               oninput="manualReading('prev',this.value)"><button type="button" onclick="openScan('prev')" title="פענח מתמונה">📷</button></div>
+        </div>
+        <div class="mf" id="mtr-curr">
+          <label for="man-curr"><span>קריאה נוכחית</span><span class="tick" id="tick-curr"></span></label>
+          <div class="box"><input type="number" id="man-curr" size="1" inputmode="numeric" placeholder="מספר"
+               oninput="manualReading('curr',this.value)"><button type="button" onclick="openScan('curr')" title="פענח מתמונה">📷</button></div>
+        </div>
+      </div>
+      <div class="hint">מספר ידוע – הקלד אותו. לא ידוע – לחץ 📷 וצלם או העלה תמונה של המונה.</div>
+    </div>
+
+    <div class="kwh-hero" id="kwh-hero"><div class="n">0.0</div><div class="l">קוט״ש לחישוב</div></div>
+
+    <div class="setline" onclick="toggleSettings()"><span id="set-sum">–</span><b id="set-btn">שנה ›</b></div>
+
+    <div id="settings" class="hidden">
+      <h4 id="dt-title">תאריך החישוב</h4>
+      <div id="dt-single">
+        <div class="fld" style="margin:0">
+          <label for="d-ref">תאריך ייחוס</label>
+          <input type="date" id="d-ref">
+          <div class="hint">קובע איזה תעריף חל.</div>
+        </div>
+      </div>
+      <div id="dt-mdates" class="hidden">
+        <div class="row">
+          <div class="fld"><label for="date-prev">תאריך קריאה קודמת</label><input type="date" id="date-prev" onchange="dateEdited('prev')"></div>
+          <div class="fld"><label for="date-curr">תאריך קריאה נוכחית</label><input type="date" id="date-curr" onchange="dateEdited('curr')"></div>
+        </div>
+        <div class="hint" id="dnote-prev"></div><div class="hint" id="dnote-curr"></div>
+        <div class="hint">לא חובה. כששני התאריכים ידועים, התקופה נגזרת מהם.</div>
+      </div>
+      <div id="dt-mdays" class="hidden">
+        <div class="fld" style="margin:7px 0 0">
+          <label for="m-days" id="m-days-lbl">כמה ימים עברו בין הקריאות? (לא חובה)</label>
+          <input type="number" id="m-days" inputmode="numeric" min="1" placeholder="למשל 60" oninput="recalc()">
+          <div class="hint">נדרש רק לתשלום הקבוע ולקיבולת, שנגבים לפי ימים.</div>
+        </div>
+      </div>
+      <div id="dt-range" class="hidden">
+        <div class="row">
+          <div class="fld"><label for="d-from">מתאריך</label><input type="date" id="d-from"></div>
+          <div class="fld"><label for="d-to">עד תאריך</label><input type="date" id="d-to"></div>
+        </div>
+        <div class="hint">התשלום הקבוע והקיבולת מחושבים לפי מספר הימים.</div>
+      </div>
+      <div id="dt-derived" class="hidden"><div class="note" id="derived-note" style="margin:0">–</div></div>
+      <div class="hint" id="days-note" style="margin-top:6px">–</div>
+
+      <h4 style="margin-top:12px">חיבור והנחות</h4>
+      <div class="row" id="conn-block">
+        <div class="fld"><label for="phases">חיבור</label>
+          <select id="phases" onchange="saveSettings();recalc()"><option value="1">חד־פאזי</option><option value="3">תלת־פאזי</option></select></div>
+        <div class="fld"><label for="amps">אמפר</label>
+          <select id="amps" onchange="saveSettings();recalc()">
+            <option>25</option><option selected>40</option><option>63</option><option>80</option><option>100</option></select></div>
+        <div class="fld"><label for="discount">הנחת ספק %</label>
+          <input type="number" id="discount" value="0" min="0" max="40" step="0.5" oninput="saveSettings();recalc()"></div>
+      </div>
+      <div class="hint" id="kva-note" style="margin:0">–</div>
+      <details style="margin-top:8px">
+        <summary>מקדם מונה (CT)</summary>
+        <input type="number" id="meter-factor" value="1" step="0.1" oninput="recalc()">
+        <div class="hint">ברוב המונים הביתיים הערך 1. שנה רק אם מצוין אחרת על המונה.</div>
+      </details>
+      <div class="hint">ההגדרות נשמרות לפעם הבאה.</div>
+    </div>
+  </div>
+
+  <!-- ===== תוצאה ===== -->
+  <div class="card" id="res-card">
+    <div class="hero">
+      <div class="lbl">סה״כ לתשלום, כולל הכל</div>
+      <div class="big" id="total-big">0.00 ₪</div>
+      <div class="sm" id="total-sub">–</div>
+    </div>
+    <div class="rows">
+      <div class="hl"><span>עלות הצריכה בלבד</span><span class="v" id="r-energy">–</span></div>
+      <div id="rr-fixed"><label class="tg"><input type="checkbox" id="inc-f" checked onchange="saveSettings();recalc()">תשלום קבוע</label><span class="v" id="r-fixed">–</span></div>
+      <div id="rr-cap"><label class="tg"><input type="checkbox" id="inc-c" checked onchange="saveSettings();recalc()">תשלום קיבולת</label><span class="v" id="r-cap">–</span></div>
+      <div><span class="k">מתוך הסה״כ: מע״מ</span><span class="v" id="t-vat">–</span></div>
+    </div>
+    <div class="hidden"><span id="t-ex"></span><span id="t-inc"></span></div>
+    <div class="hint" style="margin-top:6px">כל הסכומים כוללים מע״מ. סמן או בטל רכיב כדי לראות איך הוא משפיע על הסה״כ.</div>
+    <div id="est-warn" style="margin-top:8px"></div>
+    <details id="det-break" style="margin-top:8px">
+      <summary>📄 פירוט מלא – כל רכיב ונוסחה, עם ובלי מע״מ</summary>
+      <div id="breakdown" style="margin-top:8px"></div>
+    </details>
+    <details>
+      <summary>🔎 הערכים שהיו בתוקף</summary>
+      <div id="snapshot" style="margin-top:8px"></div>
+    </details>
+    <div style="margin-top:8px"><span class="pill" id="sync-pill">בודק…</span>
+      <span class="hint" style="display:inline"> מצב בדיקת התעריפים</span></div>
+  </div>
+  </div>
+
+  <div class="sticky" id="sticky">
+    <div>צריכה בלבד<b id="s-energy">–</b></div>
+    <div>סה״כ כולל הכל<b id="s-total">–</b></div>
+  </div>
+
+  <!-- חלון פענוח תמונה של קריאה -->
+  <div class="modal hidden" id="scan-modal" onclick="if(event.target===this) closeScan()">
+    <div class="sheet">
+      <div class="sheet-h"><b id="scan-title">פענוח קריאה מתמונה</b><button onclick="closeScan()">✕ סגור</button></div>
+      <div id="meter-prev-block"></div>
+      <div id="meter-curr-block"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== לימוד ספרות המונה ==================== -->
+<div id="view-train" class="hidden">
+  <div class="card">
+    <div class="step"><div class="txt">לימוד ספרות המונה</div></div>
+    <div class="hint" style="margin-bottom:6px">האפליקציה מגיעה עם לימוד מוכן, ורוב המשתמשים לא צריכים את הלשונית הזו.
+      היא נועדה למקרה שהמונה שלך נראה אחרת והזיהוי במסך החישוב לא נכון: אז מלמדים את האפליקציה איך נראית כל אחת מהספרות 0–9 במונה שלך.</div>
+    <div class="note" id="dm-src" style="margin:0 0 8px">–</div>
+    <div style="font-size:11.5px;font-weight:700">מה כבר נלמד:</div>
+    <div class="dgrid" id="dm-grid"></div>
+    <div class="hint" id="dm-status" style="margin:0 0 10px">–</div>
+
+    <div style="font-size:12.5px;font-weight:800;margin-bottom:3px">איך מלמדים:</div>
+    <ol class="steps">
+      <li>העלה <b>צילום של המונה</b> (כפתורי התמונה למטה).</li>
+      <li>גרור והגדל עד שהמסגרת האדומה מכסה את <b>הספרות השחורות בלבד</b>, בלי הגלגלת האדומה, ולחץ <b>"סרוק"</b>.</li>
+      <li>הקלד את <b>המספר שרשום על המונה</b>, כפי שאתה קורא אותו בעיניים.</li>
+      <li>לחץ <b>"למד"</b>. כל ספרה בקריאה נשמרת כדוגמה.</li>
+      <li>חזור על זה עם <b>צילומים של קריאות אחרות</b>, עד שכל 10 הריבועים למעלה ירוקים.</li>
+    </ol>
+    <div id="train-block"></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><div class="txt">איפה הלימוד נשמר</div></div>
+    <div class="hint" style="margin-bottom:8px">לימוד ברירת המחדל מובנה באפליקציה ופועל בכל מכשיר בלי שום פעולה.
+      לימוד שלך נשמר <b>רק בדפדפן הזה, במכשיר הזה</b> – הוא לא עובר לבד לטלפון או למחשב אחר.
+      כדי להעביר אותו: לחץ "ייצא לקובץ", שלח את הקובץ למכשיר השני (וואטסאפ, מייל וכו׳), פתח שם את האפליקציה ולחץ "ייבא מקובץ".
+      ניקוי נתוני הדפדפן מוחק את הלימוד, ולכן כדאי לשמור עותק של הקובץ.</div>
+    <input type="file" id="dm-import" accept=".json,application/json" class="hidden" onchange="DM.importFile(event)">
+    <div class="row">
+      <button class="btn-ghost" onclick="DM.exportFile()">⬇️ ייצא לקובץ</button>
+      <label class="btn-ghost" for="dm-import" style="text-align:center;margin:0;cursor:pointer">⬆️ ייבא מקובץ</label>
+    </div>
+    <button class="btn-danger" style="width:100%;margin-top:10px" onclick="DM.wipe()">מחק את הלימוד שלי וחזור לברירת המחדל</button>
+  </div>
+</div>
+
+<!-- ==================== טבלת התעריפים ==================== -->
+<div id="view-hist" class="hidden">
+
+  <div class="card">
+    <div class="step"><div class="txt">טבלת רכיבי העלות</div></div>
+    <div class="hint" style="margin-bottom:8px">כל רכיב מנוהל כציר זמן. שורה ירוקה = בתוקף היום. שורה סגולה = ערך משוער שלא אומת לתקופה ההיא.</div>
+    <div style="overflow-x:auto"><table class="reg" id="reg-table"></table></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>➕ הוספת שורה מתוארכת</summary>
+      <div class="hint" style="margin:6px 0 9px">הוספת שורה סוגרת אוטומטית את השורה הקודמת יום לפני התאריך שתזין.</div>
+      <div class="fld">
+        <label for="add-comp">רכיב</label>
+        <select id="add-comp"></select>
+        <div class="hint" id="add-unit">–</div>
+      </div>
+      <div class="row">
+        <div class="fld"><label for="add-from">מתאריך</label><input type="date" id="add-from"></div>
+        <div class="fld"><label for="add-val">עלות</label><input type="number" id="add-val" step="0.0001" placeholder="0"></div>
+      </div>
+      <div class="fld"><label for="add-src">קישור למקור</label><input type="text" id="add-src" dir="ltr" placeholder="https://..."></div>
+      <div class="fld"><label for="add-note">הערה</label><input type="text" id="add-note" placeholder="מהיכן הערך נלקח"></div>
+      <button class="btn-ghost" style="width:100%" onclick="addEntry()">הוסף לטבלה</button>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>🔍 בדיקת תקינות וסנכרון</summary>
+      <div id="audit-box" class="audit ok" style="margin-top:8px">בודק…</div>
+      <div class="row">
+        <button class="btn-ghost" onclick="Sync.runAll(true)">🔄 סנכרן מחדש</button>
+        <button class="btn-ghost" onclick="toggle('src-panel')">⚙️ Proxy</button>
+      </div>
+      <div id="src-panel" class="hidden" style="margin-top:9px">
+        <div class="fld">
+          <label for="proxy-url">כתובת Proxy / Endpoint</label>
+          <input type="text" id="proxy-url" dir="ltr" placeholder="https://your-worker.dev/t?url={url}">
+          <div class="hint">דפדפן חוסם משיכה ישירה מ‑gov.il / iec.co.il (CORS). <code>{url}</code> יוחלף בכתובת המקור.</div>
+        </div>
+        <button class="btn-ghost" onclick="saveProxy()">שמור והרץ</button>
+      </div>
+      <div class="log" id="sync-log"></div>
+    </details>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>🗑️ ניהול נתונים ומקורות</summary>
+      <div style="margin-top:9px">
+        <button class="btn-danger" style="width:100%;margin-bottom:5px" onclick="wipeAdopted()">מחק שורות שנוספו / סונכרנו</button>
+        <button class="btn-danger" style="width:100%" onclick="wipeAll()">מחק הכל ואפס את האפליקציה</button>
+        <div class="hint" style="margin-top:4px">לימוד ספרות המונה לא נמחק כאן – יש לו כפתור נפרד בלשונית "לימוד מונה".</div>
+      </div>
+      <div class="src" id="sources" style="margin-top:12px"></div>
+      <div class="note">החישוב הוא הערכה. חשבון חברת החשמל עשוי לכלול רכיבים נוספים (הנחות זכאות, חיובי עבר, ריבית פיגורים, חיוב הערכה) שאינם מיוצגים כאן.</div>
+    </details>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* =========================================================================
+   1. הגדרת הרכיבים
+   ========================================================================= */
+const COMPONENTS = [
+  { key:"energy",   name:"תעריף צריכה",   unit:"₪ לקוט״ש",       fmt:"ag",  role:"המחיר לכל קילוואט־שעה" },
+  { key:"fixedA",   name:"תשלום קבוע א׳", unit:"₪ לחודש",         fmt:"nis", role:"רכיב קבוע חודשי, מחושב יומית" },
+  { key:"fixedB",   name:"תשלום קבוע ב׳", unit:"₪ לחודש",         fmt:"nis", role:"רכיב קבוע נוסף, מחושב יומית" },
+  { key:"capacity", name:"תשלום קיבולת",  unit:"₪ לכל KVA לשנה",  fmt:"nis", role:"לפי גודל החיבור, מחושב יומית" },
+  { key:"vat",      name:"שיעור מע״מ",    unit:"%",               fmt:"pct", role:"נקבע בחקיקה, ציר זמן נפרד" }
+];
+const COMP = Object.fromEntries(COMPONENTS.map(c=>[c.key,c]));
+
+const GOV_2026 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files_netunei_hasmal_sefer_tariff_01_2026.pdf";
+const GOV_2025 = "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf";
+const VAT_SRC  = "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf";
+
+const BUILTIN = {
+  energy:[
+    { id:"e24", from:"2024-01-01", to:"2024-12-31", value:0.5252, verified:false, estimated:true,
+      note:"נגזר מ‑61.45 אג׳ כולל מע״מ 17% ממחשבון צד ג׳, לא מלוח התעריפים המקורי.",
+      src:"https://www.calculators.co.il/calculator/electricity-bill-calculator.html" },
+    { id:"e25", from:"2025-01-01", to:"2025-12-31", value:0.5425, verified:true, estimated:false,
+      note:"עדכון שנתי 2025, עלייה של כ‑3.5%.", src:GOV_2025 },
+    { id:"e26a", from:"2026-01-01", to:"2026-06-30", value:0.5451, verified:true, estimated:false,
+      note:"עדכון 01/2026, עלייה של כ‑1.5%.", src:GOV_2026 },
+    { id:"e26b", from:"2026-07-01", to:null, value:0.5383, verified:true, estimated:false,
+      note:"עדכון חצי־שנתי 07/2026, ירידה של כ‑0.57%.",
+      src:"https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/" }
+  ],
+  fixedA:[
+    { id:"fa_old", from:"2024-01-01", to:"2025-12-31", value:11.65, verified:false, estimated:true,
+      note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
+    { id:"fa26", from:"2026-01-01", to:null, value:11.65, verified:true, estimated:false,
+      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+  ],
+  fixedB:[
+    { id:"fb_old", from:"2024-01-01", to:"2025-12-31", value:17.55, verified:false, estimated:true,
+      note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
+    { id:"fb26", from:"2026-01-01", to:null, value:17.55, verified:true, estimated:false,
+      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+  ],
+  capacity:[
+    { id:"c_old", from:"2024-01-01", to:"2025-12-31", value:6.12, verified:false, estimated:true,
+      note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
+    { id:"c26", from:"2026-01-01", to:null, value:6.12, verified:true, estimated:false,
+      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+  ],
+  vat:[
+    { id:"v17", from:"2015-10-01", to:"2024-12-31", value:0.17, verified:true, estimated:false,
+      note:"17% מאוקטובר 2015 עד סוף 2024.", src:VAT_SRC },
+    { id:"v18", from:"2025-01-01", to:null, value:0.18, verified:true, estimated:false,
+      note:"הועלה ל‑18% מ‑1 בינואר 2025, הוראת פרשנות מס׳ 5 של רשות המסים.", src:VAT_SRC }
+  ]
+};
+
+const SOURCES = [
+  ["רשות המסים – העלאת המע״מ מ‑17% ל‑18% (PDF רשמי)", VAT_SRC],
+  ["רשות החשמל – ספר לוחות התעריפים 01/2026 (PDF רשמי)", GOV_2026],
+  ["רשות החשמל – לוחות תעריפים 2025 (PDF רשמי)", GOV_2025],
+  ["חברת החשמל – תעריף החשמל הביתי","https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff"],
+  ["מבנה החשבון ודוגמת חישוב","https://protocol.co.il/electricity-price/"],
+  ["עדכון 01/07/2026 – 63.52 אג׳","https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/"]
+];
+const SCRAPE_TARGETS = [
+  { name:"חברת החשמל – תעריף ביתי", url:"https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff" },
+  { name:"רשות החשמל – ספר תעריפים", url:"https://www.gov.il/he/pages/tariffbook" }
+];
+
+/* =========================================================================
+   2. עזרים
+   ========================================================================= */
+const $ = id => document.getElementById(id);
+const nis = n => n.toLocaleString("he-IL",{minimumFractionDigits:2,maximumFractionDigits:2}) + " ₪";
+const ag  = r => (r*100).toFixed(2) + " אג׳";
+const pct = r => (r*100).toFixed(0) + "%";
+const D   = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1,d); };
+const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const heb = s => s ? s.split("-").reverse().join("/") : "היום";
+const DAY = 86400000;
+function fmtVal(k,v){ const f=COMP[k].fmt; return f==="ag"?ag(v):f==="pct"?pct(v):nis(v); }
+function toggle(id){ $(id).classList.toggle("hidden"); }
+function load(k,d){ try{ const v=localStorage.getItem("wb_"+k); return v===null?d:JSON.parse(v);}catch(e){return d;} }
+function save(k,v){ try{ localStorage.setItem("wb_"+k,JSON.stringify(v)); }catch(e){} }
+function drop(k){ try{ localStorage.removeItem("wb_"+k); }catch(e){} }
+
+let ADOPTED = load("adopted", []);
+
+function timeline(key){
+  const rows = BUILTIN[key].map(r=>Object.assign({},r,{comp:key,origin:"builtin"}))
+    .concat(ADOPTED.filter(a=>a.comp===key).map(r=>Object.assign({},r)));
+  rows.sort((a,b)=> D(a.from)-D(b.from));
+  for(let i=0;i<rows.length-1;i++){
+    const nf=D(rows[i+1].from);
+    if(rows[i].to===null || D(rows[i].to)>=nf)
+      rows[i]=Object.assign({},rows[i],{to:iso(new Date(nf.getTime()-DAY)),autoclosed:true});
+  }
+  return rows.reverse();
+}
+function valueAt(key,date){
+  const t=date.getTime(), asc=timeline(key).slice().reverse();
+  return asc.filter(x=> t>=D(x.from).getTime() && (x.to===null||t<=D(x.to).getTime())).pop() || asc[asc.length-1];
+}
+function splitPeriod(from,to){
+  const out=[]; let cur=new Date(from), g=0;
+  while(cur.getTime()<=to.getTime() && g++<600){
+    const picks={}; let end=to.getTime();
+    COMPONENTS.forEach(c=>{ const e=valueAt(c.key,cur); picks[c.key]=e;
+      if(e.to) end=Math.min(end, D(e.to).getTime()); });
+    const se=new Date(end);
+    out.push({picks, from:new Date(cur), to:se, days:Math.round((se-cur)/DAY)+1});
+    cur=new Date(end+DAY);
+  }
+  return out;
+}
+
+/* =========================================================================
+   3. בדיקת תקינות
+   ========================================================================= */
+function nextExpectedUpdate(f){ const d=D(f),y=d.getFullYear(),m=d.getMonth(); return m<6?new Date(y,6,1):new Date(y+1,0,1); }
+function auditAll(){
+  const problems=[],warnings=[],flagged=new Set(); let total=0;
+  COMPONENTS.forEach(c=>{
+    const asc=timeline(c.key).slice().reverse(); total+=asc.length;
+    for(let i=1;i<asc.length;i++){
+      const p=asc[i-1],q=asc[i];
+      if(p.to===null){ problems.push(`«${c.name}»: שורה פתוחה שיש אחריה שורה נוספת.`); flagged.add(p.id); flagged.add(q.id); continue; }
+      const gap=Math.round((D(q.from)-D(p.to))/DAY);
+      if(gap>1){ problems.push(`«${c.name}»: חסר כיסוי של ${gap-1} ימים לפני ${heb(q.from)}.`); flagged.add(q.id); }
+      if(gap<1){ problems.push(`«${c.name}»: חפיפת תאריכים סביב ${heb(q.from)}.`); flagged.add(p.id); flagged.add(q.id); }
+    }
+    const open=asc.filter(x=>x.to===null);
+    if(!open.length) problems.push(`«${c.name}»: אין שורה פתוחה.`);
+    if(open.length>1){ problems.push(`«${c.name}»: יותר משורה פתוחה אחת.`); open.forEach(o=>flagged.add(o.id)); }
+    if(c.key==="energy" && open.length===1){
+      const due=nextExpectedUpdate(open[0].from);
+      if(new Date()>=due){ warnings.push(`חלף מועד העדכון הצפוי (${heb(iso(due))}) ותעריף הצריכה עדיין מ‑${heb(open[0].from)}.`); flagged.add(open[0].id); }
+    }
+    const est=asc.filter(x=>x.estimated);
+    if(est.length) warnings.push(`«${c.name}»: ${est.length} שורות משוערות (${est.map(x=>heb(x.from)).join(", ")}).`);
+  });
+  return {problems,warnings,flagged,total};
+}
+function renderAudit(){
+  const a=auditAll(),box=$("audit-box"),L=[];
+  L.push(`נבדקו ${a.total} שורות ב‑${COMPONENTS.length} רכיבים.`);
+  a.problems.forEach(p=>L.push("✗ "+p));
+  a.warnings.forEach(w=>L.push("⚠ "+w));
+  if(!a.problems.length) L.push("✓ כל הרצפים שלמים – ללא חורים או חפיפות.");
+  box.className="audit "+(a.problems.length?"bad":"ok");
+  box.innerHTML=L.join("<br>");
+  return a;
+}
+
+/* =========================================================================
+   4. סנכרון
+   ========================================================================= */
+const Sync = {
+  lines:[],
+  say(m){ this.lines.push(m); const l=$("sync-log"); l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; },
+  pill(c,t){ const p=$("sync-pill"); p.className="pill "+c; p.textContent=t; },
+  buildUrl(t){ const p=($("proxy-url").value||"").trim(); if(!p) return null;
+    return p.includes("{url}")?p.replace("{url}",encodeURIComponent(t.url)):p.replace(/\/+$/,"")+"/"+t.url; },
+  parse(text){
+    const c=[],pats=[/([0-9]{2}\.[0-9]{1,2})\s*(?:אג|אגורות)/g,
+      /"?(?:tariff|rate|kwh[_-]?price)"?\s*[:=]\s*"?(0\.[0-9]{3,4})"?/gi,/([0-9]{2}\.[0-9]{1,2})\s*agorot/gi];
+    for(const p of pats){ let m; while((m=p.exec(text))!==null){ let v=parseFloat(m[1]); if(v>5) v/=100; if(v>=0.30&&v<=1.50) c.push(v); } }
+    if(!c.length) return null;
+    const f={}; c.forEach(v=>f[v]=(f[v]||0)+1);
+    return Number(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]);
+  },
+  async runAll(){
+    this.lines=[];
+    this.say("── בדיקה "+new Date().toLocaleString("he-IL")+" ──");
+    const a=renderAudit();
+    this.say(`${a.total} שורות · בעיות: ${a.problems.length} · אזהרות: ${a.warnings.length}`);
+    a.problems.forEach(p=>this.say("  ✗ "+p));
+    a.warnings.forEach(w=>this.say("  ⚠ "+w));
+    const proxy=($("proxy-url").value||"").trim();
+    if(!proxy){
+      this.pill(a.problems.length?"err":"local", a.problems.length?"נמצאו בעיות":"טבלה מוטמעת");
+      this.say("לא הוגדר proxy – אין אימות מול המקור מתוך הדפדפן (CORS).");
+      renderRegistry(a.flagged); return;
+    }
+    this.say("מאמת מול המקורות…");
+    for(const t of SCRAPE_TARGETS){
+      try{
+        this.say("  מושך: "+t.name);
+        const r=await fetch(this.buildUrl(t),{cache:"no-store"});
+        if(!r.ok){ this.say("    ✗ סטטוס "+r.status); continue; }
+        const rate=this.parse(await r.text());
+        if(rate===null){ this.say("    ✗ לא נמצא ערך סביר"); continue; }
+        this.say("    ✓ נמצא "+ag(rate)+" כולל מע״מ");
+        this.pill("live","מקור חי"); this.compare(rate,t,a); return;
+      }catch(e){ this.say("    ✗ "+(e.message||"כשל רשת/CORS")); }
+    }
+    this.pill("err","משיכה נכשלה");
+    renderRegistry(a.flagged);
+  },
+  compare(rateIncl,target,audit){
+    const now=new Date(), cur=valueAt("energy",now), v=valueAt("vat",now);
+    const curIncl=cur.value*(1+v.value);
+    if(Math.abs(rateIncl-curIncl)<0.0005){
+      this.say("  ✓ תואם לטבלה – אין צורך בעדכון."); renderRegistry(audit.flagged); return;
+    }
+    this.say("  ⚠ פער מול הטבלה ("+ag(curIncl)+"). נדרש אישורך.");
+    if(confirm(`נמצא תעריף שונה ב"${target.name}":\n\n${ag(rateIncl)} כולל מע״מ\nלעומת ${ag(curIncl)} בטבלה.\n\nלהוסיף כשורה חדשה מהיום?`)){
+      const today=iso(new Date());
+      ADOPTED.push({ id:"a"+Date.now(), comp:"energy", from:today, to:null, value:rateIncl/(1+v.value),
+        verified:true, estimated:false, origin:"sync",
+        note:`אומץ מ‑«${target.name}» ב‑${heb(today)}. ${ag(rateIncl)} כולל מע״מ חולק ב‑${(1+v.value).toFixed(2)}.`,
+        src:target.url });
+      save("adopted",ADOPTED); this.say("  ✓ אומץ."); refreshAll();
+    } else { this.say("  ✗ נדחה."); renderRegistry(audit.flagged); }
+  }
+};
+
+/* =========================================================================
+   5. טבלת המאגר
+   ========================================================================= */
+function renderRegistry(flagged){
+  flagged = flagged || auditAll().flagged;
+  const now=new Date();
+  let html = `<tr><th>עלות</th><th>מתאריך</th><th>עד תאריך</th><th>מקור</th><th></th></tr>`;
+  COMPONENTS.forEach(c=>{
+    const cur=valueAt(c.key,now);
+    html += `<tr class="grp"><td colspan="5">${c.name} <span>· ${c.unit} · ${c.role}</span></td></tr>`;
+    timeline(c.key).forEach(x=>{
+      const cls = flagged.has(x.id)?"bad" : x.id===cur.id?"now" : x.estimated?"est" : "";
+      html += `<tr class="${cls}">
+        <td class="c">${fmtVal(c.key,x.value)}
+          ${x.id===cur.id?'<span class="tag now">היום</span>':''}
+          ${x.estimated?'<span class="tag est">משוער</span>':''}
+          ${x.origin!=="builtin"?'<span class="tag man">נוסף</span>':''}</td>
+        <td class="d">${heb(x.from)}</td>
+        <td class="d">${heb(x.to)}</td>
+        <td><a class="s" href="${x.src}" target="_blank" rel="noopener">מקור</a></td>
+        <td>${x.origin==="builtin"?"":`<button class="x" onclick="delEntry('${x.id}')">✕</button>`}</td></tr>`;
+      if(x.note) html += `<tr><td colspan="5" class="regnote">${x.note}</td></tr>`;
+    });
+  });
+  $("reg-table").innerHTML = html;
+}
+
+function addEntry(){
+  const comp=$("add-comp").value, from=$("add-from").value, val=parseFloat($("add-val").value);
+  if(!from||!isFinite(val)){ alert("נדרש תאריך וערך מספרי."); return; }
+  const raw = COMP[comp].fmt==="pct" ? (val>1?val/100:val) : (COMP[comp].fmt==="ag" && val>5 ? val/100 : val);
+  if(!confirm(`להוסיף ל«${COMP[comp].name}» את ${fmtVal(comp,raw)} מ‑${heb(from)}?\nהשורה הקודמת תיסגר יום לפני.`)) return;
+  ADOPTED.push({ id:"m"+Date.now(), comp, from, to:null, value:raw, verified:!!$("add-src").value.trim(),
+    estimated:false, origin:"manual",
+    note:($("add-note").value.trim()||"נוסף ידנית ב‑"+heb(iso(new Date()))+"."),
+    src:($("add-src").value.trim()||"#") });
+  save("adopted",ADOPTED);
+  $("add-val").value=""; $("add-src").value=""; $("add-note").value="";
+  refreshAll();
+}
+function delEntry(id){
+  const r=ADOPTED.find(x=>x.id===id); if(!r) return;
+  if(!confirm(`למחוק את השורה של «${COMP[r.comp].name}» מ‑${heb(r.from)}?`)) return;
+  ADOPTED=ADOPTED.filter(x=>x.id!==id); save("adopted",ADOPTED); refreshAll();
+}
+function wipeAdopted(){
+  if(!ADOPTED.length){ alert("אין מה למחוק."); return; }
+  if(!confirm(`למחוק ${ADOPTED.length} שורות שנוספו או סונכרנו?`)) return;
+  ADOPTED=[]; drop("adopted"); refreshAll(); alert("הטבלה אופסה למצב המוטמע.");
+}
+function wipeAll(){
+  if(!confirm("למחוק את כל הנתונים השמורים במכשיר?")) return;
+  if(!confirm("אישור אחרון – למחוק הכל?")) return;
+  try{ Object.keys(localStorage).filter(k=>k.startsWith("wb_")).forEach(k=>localStorage.removeItem(k)); }catch(e){}
+  location.reload();
+}
+
+/* =========================================================================
+   6. קריאות מונה + OCR
+   ========================================================================= */
+const readings={prev:{value:null,confirmed:false},curr:{value:null,confirmed:false}};
+const cropState={};
+
+/* החלק המשותף לסריקה: כפתורי תמונה + מסגרת החיתוך. משמש גם את מסך החישוב וגם את לשונית הלימוד */
+function scannerHTML(key){
+  return `
+    <input type="file" id="cam-${key}" accept="image/*" capture="environment" class="hidden" onchange="onPick(event,'${key}')">
+    <input type="file" id="file-${key}" accept="image/*" class="hidden" onchange="onPick(event,'${key}')">
+    <div class="imgrow">
+      <button class="filebtn" style="border:none" onclick="startLive('${key}')">🎥 מצלמה חיה</button>
+      <label class="filebtn alt" for="cam-${key}" onclick="watchPicker('${key}')">📷 צלם</label>
+      <label class="filebtn alt" for="file-${key}" onclick="watchPicker('${key}')">🖼️ גלריה</label>
+    </div>
+    <div id="pickwarn-${key}"></div>
+    <div class="dropzone" id="dz-${key}"
+         ondragover="dzOver(event,'${key}')" ondragleave="dzOut('${key}')" ondrop="dzDrop(event,'${key}')">
+      או גרור לכאן תמונה / הדבק ב‑Ctrl+V
+    </div>
+
+    <div id="crop-${key}" class="cropper hidden">
+      <div class="tip">מקם את הספרות השחורות בתוך המסגרת האדומה</div>
+      <div class="viewport" id="vp-${key}"><img id="img-${key}" alt=""><div class="scanwin" id="win-${key}"></div></div>
+      <div class="ctl"><span>זום</span><input type="range" id="zoom-${key}" min="0.3" max="4" step="0.02" value="1" oninput="setZoom('${key}',this.value)">
+        <span>גובה</span><input type="range" id="hgt-${key}" min="30" max="120" step="2" value="56" oninput="setWinH('${key}',this.value)"></div>
+      <div class="ctl"><span>רוחב</span><input type="range" id="wid-${key}" min="20" max="100" step="1" value="84" oninput="setWinW('${key}',this.value)"></div>
+      <div class="crop-actions"><button class="b-go" onclick="doCrop('${key}')">סרוק ✓</button>
+        <button class="b-no" onclick="closeCropper('${key}')">ביטול</button></div>
+    </div>`;
+}
+function meterBlockHTML(key,title){
+  return `<div id="scanblk-${key}" class="hidden">
+    ${scannerHTML(key)}
+    <div id="gate-${key}" class="gate hidden">
+      <div class="gate-title" id="gtitle-${key}">בדוק את הספרות שזוהו ואשר</div>
+      <div class="dcells" id="cells-${key}"></div><div class="ocr-out" id="out-${key}">…</div>
+      <div class="conf" id="conf-${key}"></div>
+      <input type="number" id="edit-${key}" inputmode="numeric" placeholder="תקן את המספר כאן">
+      <div class="row" style="margin-top:7px">
+        <button class="b-ok" onclick="confirmReading('${key}')">✓ אשר והכנס לשדה</button>
+        <label class="filebtn sm" for="file-${key}" style="margin:0">↺ תמונה אחרת</label></div>
+      <div class="locked" id="lock-${key}">הקריאה לא תיכנס לחישוב עד שתאשר.</div>
+    </div>
+  </div>`;
+}
+/* חלון הפענוח: פותח את בלוק הסריקה של הקריאה המבוקשת */
+function openScan(key){
+  $("scan-title").textContent = key==="prev" ? "פענוח הקריאה הקודמת מתמונה" : "פענוח הקריאה הנוכחית מתמונה";
+  $("scanblk-prev").classList.toggle("hidden", key!=="prev");
+  $("scanblk-curr").classList.toggle("hidden", key!=="curr");
+  $("scan-modal").classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+}
+function closeScan(){ $("scan-modal").classList.add("hidden"); document.body.style.overflow = ""; }
+function toggleSettings(){
+  const el = $("settings"), open = el.classList.toggle("hidden") === false;
+  $("set-btn").textContent = open ? "סגור ˄" : "שנה ›";
+}
+function saveSettings(){
+  save("set", { incF:$("inc-f").checked, incC:$("inc-c").checked, phases:$("phases").value, amps:$("amps").value, disc:$("discount").value });
+}
+
+/* לשונית הלימוד: אותה סריקה, אבל במקום "אשר" – הקלדת הקריאה הנכונה ו"למד" */
+function trainBlockHTML(){
+  const key="train";
+  return `${scannerHTML(key)}
+    <div id="gate-${key}" class="gate hidden">
+      <div class="gate-title" id="gtitle-${key}">שלב 3: הקלד את המספר שעל המונה</div>
+      <div class="dcells" id="cells-${key}"></div>
+      <div class="guess" id="guess-${key}"></div>
+      <div class="ocr-out hidden" id="out-${key}"></div>
+      <div class="conf" id="conf-${key}"></div>
+      <label for="edit-${key}" style="margin-top:4px">המספר שרשום על המונה (בלי הגלגלת האדומה)</label>
+      <input type="number" id="edit-${key}" inputmode="numeric" placeholder="הקלד כאן את מה שאתה רואה על המונה">
+      <div class="row" style="margin-top:7px">
+        <button class="b-ok" onclick="trainLearn()">📚 שלב 4: למד</button>
+        <label class="filebtn sm" for="file-${key}" style="margin:0">🖼️ תמונה נוספת</label></div>
+      <div class="locked" id="lock-${key}" style="color:var(--muted)"></div>
+    </div>`;
+}
+function trainLearn(){
+  const msg = DM.learn("train", $("edit-train").value.trim());
+  const ok = /^הספרות נלמדו/.test(msg);
+  $("lock-train").style.color = ok ? "var(--ok)" : "var(--err)";
+  $("lock-train").textContent = msg || "אין סריקה ללמוד ממנה – סרוק תמונה קודם.";
+  if(ok) $("gate-train").classList.add("done");
+}
+
+/* ---------- חילוץ תאריך הצילום מתוך נתוני ה‑EXIF של התמונה ---------- */
+function parseExifDate(dv){
+  if(dv.byteLength<4 || dv.getUint16(0)!==0xFFD8) return null;      /* לא JPEG */
+  let off=2;
+  while(off+4<=dv.byteLength){
+    if(dv.getUint8(off)!==0xFF) return null;
+    const marker=dv.getUint8(off+1);
+    if(marker===0xD8||(marker>=0xD0&&marker<=0xD9)){ off+=2; continue; }
+    if(marker===0xDA) return null;                                   /* תחילת נתוני התמונה */
+    const size=dv.getUint16(off+2);
+    if(marker===0xE1 && off+10<=dv.byteLength && dv.getUint32(off+4)===0x45786966)
+      return readTiff(dv,off+10);
+    off += 2+size;
+  }
+  return null;
+}
+function readTiff(dv,base){
+  if(base+8>dv.byteLength) return null;
+  const bom=dv.getUint16(base);
+  if(bom!==0x4949 && bom!==0x4D4D) return null;
+  const le = bom===0x4949;
+  const u16=o=>dv.getUint16(o,le), u32=o=>dv.getUint32(o,le);
+  if(u16(base+2)!==0x002A) return null;
+  const scan = ptr => {
+    if(ptr+2>dv.byteLength) return {};
+    const n=u16(ptr); let date=null, exifPtr=null;
+    for(let i=0;i<n;i++){
+      const e=ptr+2+i*12; if(e+12>dv.byteLength) break;
+      const tag=u16(e), type=u16(e+2), cnt=u32(e+4);
+      if(tag===0x8769) exifPtr = base+u32(e+8);
+      if((tag===0x9003||tag===0x9004||tag===0x0132) && type===2 && cnt>=11){
+        const vo = cnt>4 ? base+u32(e+8) : e+8;
+        let s="";
+        for(let j=0;j<Math.min(cnt-1,19) && vo+j<dv.byteLength;j++) s+=String.fromCharCode(dv.getUint8(vo+j));
+        if(/^\d{4}:\d{2}:\d{2}/.test(s) && (!date||tag===0x9003)) date=s;
+      }
+    }
+    return {date,exifPtr};
+  };
+  const r0=scan(base+u32(base+4));
+  const r1=r0.exifPtr?scan(r0.exifPtr):{};
+  const raw=r1.date||r0.date;
+  if(!raw) return null;
+  const [Y,M,Dd]=raw.slice(0,10).split(":");
+  const y=+Y,mo=+M,dd=+Dd;
+  if(y<2000||y>2100||mo<1||mo>12||dd<1||dd>31) return null;
+  return `${Y}-${M}-${Dd}`;
+}
+function readExifDate(file){
+  return new Promise(res=>{
+    const fr=new FileReader();
+    fr.onerror=()=>res(null);
+    fr.onload=()=>{ try{ res(parseExifDate(new DataView(fr.result))); }catch(e){ res(null); } };
+    try{ fr.readAsArrayBuffer(file.slice(0, 256*1024)); }catch(e){ res(null); }
+  });
+}
+const dateManual = { prev:false, curr:false };
+function dateEdited(key){ dateManual[key]=true; $("dnote-"+key).textContent="תאריך שהוזן ידנית."; recalc(); }
+
+/* תאריך מהקובץ הוא הצעה בלבד: נמצא שבצילומי מסך באנדרואיד השדה DateTimeOriginal מכיל את מועד צילום המסך,
+   ולא את מועד צילום המונה – ולכן הוא לא נכנס לחישוב בלי אישור של המשתמש */
+async function applyExif(file,key){
+  const d = await readExifDate(file);
+  const note=$("dnote-"+key);
+  if(d){
+    note.innerHTML = `📷 בקובץ רשום התאריך <b>${heb(d)}</b>. בצילום מסך זה מועד צילום המסך ולא מועד הקריאה.
+      <a href="#" onclick="useExif('${key}','${d}');return false;">השתמש בתאריך הזה</a>`;
+  } else {
+    note.textContent = "בקובץ אין תאריך צילום. אם ידוע לך מתי נלקחה הקריאה – הזן אותו כאן.";
+  }
+}
+function useExif(key,d){ $("date-"+key).value=d; dateManual[key]=false;
+  $("dnote-"+key).innerHTML=`📷 התאריך נלקח מנתוני הצילום: <b>${heb(d)}</b>`; recalc(); }
+
+/* ---------- מצלמה חיה: לא עוברת דרך בורר הקבצים של המערכת ---------- */
+let liveStream=null, liveKey=null;
+async function startLive(key){
+  const md = navigator.mediaDevices;
+  if(!md || !md.getUserMedia){
+    $("pickwarn-"+key).innerHTML = `<div class="envwarn" style="margin-top:7px">
+      אין גישה למצלמה בסביבה הזו.${window.isSecureContext===false
+        ? " הדף לא רץ בחיבור מאובטח (https) – דפדפנים מאפשרים מצלמה רק ב‑https, לא בקובץ מקומי."
+        : ""} פתח את הדף מכתובת https, או הזן את הקריאה ידנית.</div>`;
+    return;
+  }
+  try{
+    liveStream = await md.getUserMedia({ video:{ facingMode:{ideal:"environment"}, width:{ideal:1920} } });
+    liveKey = key;
+    const v=$("live-video"); v.srcObject=liveStream; await v.play();
+    $("live-wrap").classList.remove("hidden");
+    $("pickwarn-"+key).innerHTML="";
+  }catch(e){
+    const why = e && e.name==="NotAllowedError" ? "ההרשאה נדחתה או שהאפליקציה המארחת לא מבקשת הרשאת מצלמה."
+              : e && e.name==="NotFoundError" ? "לא נמצאה מצלמה."
+              : (e && e.message) || "שגיאה לא ידועה.";
+    $("pickwarn-"+key).innerHTML = `<div class="envwarn" style="margin-top:7px">לא הצלחתי לפתוח את המצלמה: ${why}
+      <br>פתח את הדף ב‑Chrome או מכתובת https, או הזן את הקריאה ידנית.</div>`;
+  }
+}
+function stopLive(){
+  if(liveStream){ liveStream.getTracks().forEach(t=>t.stop()); liveStream=null; }
+  $("live-wrap").classList.add("hidden");
+  const v=$("live-video"); if(v) v.srcObject=null;
+}
+function snapLive(){
+  const v=$("live-video"); if(!v||!v.videoWidth){ alert("המצלמה עדיין לא מוכנה."); return; }
+  const key=liveKey;
+  const c=document.createElement("canvas");
+  c.width=v.videoWidth; c.height=v.videoHeight;
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+  c.toBlob(b=>{
+    stopLive();
+    const f=new File([b],"snap.jpg",{type:"image/jpeg"});
+    f.__live=true;
+    loadImage(f,key);
+    if(key==="train") return;
+    $("date-"+key).value = iso(new Date());
+    $("dnote-"+key).innerHTML = `🎥 צולם עכשיו – התאריך נקבע להיום (${heb(iso(new Date()))}).`;
+    recalc();
+  },"image/jpeg",0.92);
+}
+
+/* ---------- זיהוי בורר קבצים שלא נפתח בכלל ---------- */
+/* כשבורר קבצים אמיתי נפתח, הדף מאבד פוקוס או הופך מוסתר. אם תוך 2.5 שניות
+   לא קרה דבר מהשניים ולא הגיע קובץ – האפליקציה המארחת לא מימשה את הבורר. */
+let pickerSignal=false;
+["blur","visibilitychange","pagehide"].forEach(ev =>
+  window.addEventListener(ev, ()=>{ pickerSignal=true; }, true));
+
+function watchPicker(key){
+  pickerSignal=false;
+  const box=$("pickwarn-"+key);
+  box.innerHTML="";
+  setTimeout(()=>{
+    if(pickerSignal || (readings[key] && readings[key].confirmed) || !cropIsIdle(key)) return;
+    box.innerHTML = `<div class="envwarn" style="margin-top:7px">
+      <b>⚠ בורר הקבצים לא נפתח</b><br>
+      התוכנה שבה אתה מריץ את הדף (עורך HTML, תצוגה מקדימה בצ׳אט וכדומה) לא מממשת פתיחת קבצים,
+      ולכן הכפתור הזה לא יגיב – זו מגבלה של אותה תוכנה, לא של הדף.
+      <br><br><b>מה שכן יעבוד:</b>
+      <br>• <b>Chrome</b> – שמור את הקובץ ופתח אותו משם
+      <br>• <b>🎥 מצלמה חיה</b> – לא עוברת דרך בורר הקבצים (דורשת https)
+      <br>• <b>הזנה ידנית</b> של הקריאה – מדויקת לחלוטין, והחישוב כולו זהה
+      <br><br><button class="btn-ghost" style="width:100%;margin-top:5px" onclick="this.parentNode.parentNode.innerHTML=''">הבנתי, סגור</button></div>`;
+  }, 2500);
+}
+function cropIsIdle(key){ const el=$("crop-"+key); return !el || el.classList.contains("hidden"); }
+
+function onPick(ev,key){ pickerSignal=true; const f=ev.target.files&&ev.target.files[0]; ev.target.value=""; if(f) loadImage(f,key); }
+function loadImage(file,key){
+  if(!file||!/^image\//.test(file.type)){ alert("הקובץ שנבחר אינו תמונה."); return; }
+  if(key!=="train" && $("scan-modal").classList.contains("hidden")) openScan(key);
+  $("pickwarn-"+key).innerHTML="";
+  if(!file.__live && key!=="train") applyExif(file,key);   /* בצילום חי אין EXIF – התאריך נקבע להיום; בלימוד אין תאריך */
+  $("gate-"+key).classList.add("hidden");
+  const fr=new FileReader();
+  fr.onerror=()=>alert("קריאת הקובץ נכשלה.");
+  fr.onload=e=>{ const img=$("img-"+key);
+    img.onload=()=>{ $("crop-"+key).classList.remove("hidden");
+      const vp=$("vp-"+key), base=vp.clientWidth/img.naturalWidth;
+      cropState[key]={img,vp,zoom:1,base,x:0,y:(vp.clientHeight-img.naturalHeight*base)/2};
+      img.style.width=img.naturalWidth+"px"; img.style.height="auto"; $("zoom-"+key).value=1;
+      setWinH(key,$("hgt-"+key).value); setWinW(key,$("wid-"+key).value);   /* המסגרת מקבלת את מידות המחוונים כבר בטעינה */
+      applyTransform(key); bindDrag(key); if(key==="train") $("crop-"+key).scrollIntoView({behavior:"smooth",block:"center"}); };
+    img.onerror=()=>alert("לא ניתן להציג את התמונה הזו.");
+    img.src=e.target.result; };
+  fr.readAsDataURL(file);
+}
+function dzOver(e,k){ e.preventDefault(); $("dz-"+k).classList.add("over"); }
+function dzOut(k){ $("dz-"+k).classList.remove("over"); }
+function dzDrop(e,k){ e.preventDefault(); dzOut(k);
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) loadImage(f,k); }
+
+document.addEventListener("paste", e=>{
+  const items=(e.clipboardData&&e.clipboardData.items)||[];
+  for(const it of items){
+    if(it.type&&it.type.indexOf("image")===0){
+      const f=it.getAsFile();
+      if(f){
+        if(!$("view-train").classList.contains("hidden")) loadImage(f,"train");
+        else { setMode("meter"); loadImage(f, readings.prev.confirmed?"curr":"prev"); }
+        e.preventDefault(); }
+      return;
+    }
+  }
+});
+
+function checkEnv(){
+  let framed=false;
+  try{ framed = window.self!==window.top; }catch(e){ framed=true; }
+  const noCam    = !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia;
+  const insecure = window.isSecureContext === false;
+  if(!framed && !noCam && !insecure){ $("env-warn").innerHTML=""; return; }
+
+  const notes=[];
+  if(framed)  notes.push("הדף רץ בתוך חלון מוטמע (תצוגה מקדימה של עורך או של צ׳אט). חלון כזה לרוב לא מממש בורר קבצים, ולכן כפתורי התמונה לא יגיבו.");
+  if(insecure)notes.push("הדף לא רץ בחיבור מאובטח (https). דפדפנים מאפשרים גישה למצלמה רק ב‑https – קובץ מקומי לא נחשב מאובטח.");
+  if(noCam)   notes.push("אין ממשק מצלמה זמין בסביבה הזו.");
+
+  $("env-warn").innerHTML=`<div class="envwarn"><b>⚠ צילום המונה כנראה לא יעבוד כאן</b><br>
+    ${notes.map(n=>"• "+n).join("<br>")}
+    <br><br><b>איפה כן:</b> פתח את הקובץ ב‑<b>Chrome</b> (שמור למכשיר ← פתח באמצעות Chrome) –
+    שם בורר הקבצים והמצלמה פועלים. למצלמה חיה נדרשת כתובת https.
+    <br><br><b>הזנה ידנית של הקריאות עובדת בכל מקום</b>, וכל החישוב זהה לחלוטין.
+    <br><button class="btn-ghost" style="width:100%;margin-top:7px" onclick="document.getElementById('env-warn').innerHTML=''">סגור</button></div>`;
+}
+
+function applyTransform(k){ const s=cropState[k]; s.img.style.transform=`translate(${s.x}px,${s.y}px) scale(${s.base*s.zoom})`; }
+function setZoom(k,v){ const s=cropState[k]; if(!s) return; s.zoom=parseFloat(v); applyTransform(k); }
+function setWinH(k,v){ $("win-"+k).style.height=v+"px"; }
+/* רוחב המסגרת באחוזים מרוחב החלון, ממורכז */
+function setWinW(k,v){ const m=(100-Number(v))/2; $("win-"+k).style.left=m+"%"; $("win-"+k).style.right=m+"%"; }
+function closeCropper(k){ $("crop-"+k).classList.add("hidden"); }
+function bindDrag(key){
+  const s=cropState[key],img=s.img,pts=new Map(); let sd=0,sz=1,last=null;
+  img.onpointerdown=e=>{ pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); img.setPointerCapture(e.pointerId);
+    if(pts.size===1) last={x:e.clientX-s.x,y:e.clientY-s.y};
+    if(pts.size===2){ const a=[...pts.values()]; sd=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y); sz=s.zoom; } e.preventDefault(); };
+  img.onpointermove=e=>{ if(!pts.has(e.pointerId)) return;
+    pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pts.size===2){ const a=[...pts.values()],d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y);
+      if(sd>0){ s.zoom=Math.min(4,Math.max(0.3,sz*d/sd)); $("zoom-"+key).value=s.zoom; applyTransform(key); } }
+    else if(last){ s.x=e.clientX-last.x; s.y=e.clientY-last.y; applyTransform(key); } e.preventDefault(); };
+  const up=e=>{ pts.delete(e.pointerId); if(pts.size<2) sd=0; if(!pts.size) last=null; };
+  img.onpointerup=up; img.onpointercancel=up;
+}
+function otsu(hist,total){
+  let sum=0; for(let i=0;i<256;i++) sum+=i*hist[i];
+  let sumB=0,wB=0,max=0,th=127;
+  for(let i=0;i<256;i++){ wB+=hist[i]; if(!wB) continue; const wF=total-wB; if(!wF) break;
+    sumB+=i*hist[i]; const mB=sumB/wB,mF=(sum-sumB)/wF,b=wB*wF*(mB-mF)*(mB-mF);
+    if(b>max){ max=b; th=i; } }
+  return th;
+}
+/* ---------- זיהוי ספרות המונה בהשוואת תבניות (במקום Tesseract) ----------
+   נבדק על מונה גלגלות עם ספרות כהות על גלגלות בהירות, גם בצילומי מסך מטושטשים:
+   מעבר לשחור־לבן הורס את הספרות, ולכן כל חלון ספרה מושווה בגווני אפור לתבניות
+   שנלמדו מקריאות שאושרו. כל אישור בשער מוסיף תבניות.
+   פרמטרים (נמדדו על 72 מיקומי מסגרת): חלון צמוד לגלגלת, הזזה ±6, 4 קני מידה,
+   קבלה רק בציון ≥ 0.89 ופער ≥ 0.05 מהספרה השנייה. הסף נקבע בבדיקה על 5 צילומים של המונה (כל צילום זוהה
+   אחרי למידה מ‑4 האחרים): ב‑0.85 התקבלו 5 ספרות שגויות מתוך 108, ב‑0.89 – אפס, במחיר יותר ספרות שמסומנות לבדיקה. */
+const DM = (() => {
+  const KEY = "wbdigits_v1",               /* לא מתחיל ב‑wb_ – ולכן איפוס האפליקציה לא מוחק אותו */
+        TW = 20, TH = 30, SH = 6, SCALES = [0.85, 0.95, 1.05, 1.15],
+        MIN_SCORE = 0.89, MIN_MARGIN = 0.05, MAX_PER_DIGIT = 10, UP = 3;
+  const last = {};                          /* הסריקה האחרונה לכל מונה – נדרשת כדי ללמוד באישור */
+
+  const loadOwn = () => { try{ return JSON.parse(localStorage.getItem(KEY)) || {}; }catch(e){ return {}; } };
+  /* לימוד ברירת מחדל, מובנה בקוד: 29 דוגמאות מ‑5 צילומים של מונה ADR (052202, 052713, 049192, 050660, 042186).
+     שמור כ‑int8 (ערך × 40) ב‑base64; מתאם מול המקור ≥ 0.99997.
+     אין ערבוב: ברגע שיש למשתמש לימוד משלו, רק הוא משמש – דוגמאות ממונה עם גופן אחר היו מוסיפות טעויות. */
+  const DEFAULT_B64 = {"0":"3Nzc4ejp5eT3GjI/QjkkBObe3Nre3d3h6Oro5PkeOkhKQi4J6Nzc2t/e3eLp7Orj+yNATlBKNg7q3Nza4N/e4uvv6uP+KUhXWlVBF+7d3Nzh4N/i7PHs5gIsTF1gW0ke897c3OLh4eTt9O/nAS5PYGNeTST23t3e5OTk5vD18uj+MlJjZmFTLv7g397m5+bo8vf16/4xUmRoZVc1BOTg3+jq6uv0+vrv/SxOYGdmWDkI5uHf6uvq6/b9//b9JURXYmNVNgjn4uHo6ujp9AIIBAIaNklXWEcnA+rk4ujq6uv2CBEQCBAhNEA/LRH46ufm6Ort7fYOHCAaFRQYGRUI/fX18+3o6+7t9hAiKiokHhgQCAMEBgwH9+fr7vD3DiMxNjIwKCIcGRsgIxcC5uvu8fYKHzI/QD89Ojc1Njk2JAnk6e3u8AIWKDxCQ0NCQkBAQDolCOHl6urq+QwgMzxBQ0NDQ0FAOCEG3eLn5uXu/xMlMjk8Pj47ODQsGP7b4OLi4OTyBBgnLjM2NC4oIhoJ9Njd3t3b3ub1ChoiKSsnHhEJAvbp1dna29na3un8DBQZGBEG9u7o4t/T1tjZ19bZ4fH/BggE+/Lm4dvZ2dLW19nX1trf6/f8+/Ps5uDc2tnY0tbY29va3eLs9fj17+nm5OPi4N7S1tjb3Nzg5ezz9fTx7u3u7+7q5dLW2Nrb3eHl6u3u7u3s7PDy8u7n0NHU19nc3d/i5OXk5ebm6uzs6ePP0NLU1dfY2drb3Nzc3d7g5OXi3c/Q0NHS0tPS09TU1NTW1tbZ29nWydDT0MnDw8fS3N7b1MzGw8bJy8jM19jUzMbI0OHu8e7k18rFyczOzM7a29XMx8/g9AMIA/Xjz8bJ0NHO0t7e2dDI1O4IGCAZCPTayMrS09DV4eHc0sva+BYnLSkYAOHMzdLSz9fk5N7SzuMEIzQ4NiQH5s/O0tPQ2+rq4dLP7BIuPkI/LxHsz9DW1tPe7O7k1NP0HDlISkQ0GO/R0tnY1N/t7+XV1/smQE1PSToe89PU3NzX4e/w5tXYAC1GUlROPyL01Nbf3tni8O/m1tsHMUhVWFJAIPTV2ePj3OLy8OfY3gs1S1ZZVEIk+Nre5+bf5PLx6NnhEDhOWVxXRCj82+Ls6uHk8/Lo1+ISOk9aXllFJ/3a4u3s4eX19eza4hI4TlteVkQk+Nvl7/Dk5/r++OXiCS5IV1hOOhju3e708uTvBAkE9egBIzxKSj4qDOrm+P325PEKFRQJ9PkPJTQ0KBT98PgICPzm8RAhJh4J/PwDDQ8J/vkAEBgUAOTyEiYuKh4SCgYGBwYGDBcjJBoC4vARKTQyLCQeGxgXGBsfJi0qHADg7A0mNDY2NDIwLiwuMDEyMiwY/N7qCCEwNDc5OTo5OTg4NzYxKBP43OgCGisxNDc4Ojo4Nzc2MywgD/Tb5v4UIicsLy8tKSYlJSUlIRgJ8Nrk+gwaICQjHhYOCQkMDxQXEgPs2d/0BBAVFhAF+fDq6vD4AgoI++fV2+7+BgcD9+nc087S2+b2//zw4NPZ6vj9+fLm2tDLyMrT3+329uze0tvp9fj27+Xc1dPQ0trj7vX06t3R3t7e3t7d3dzb2tra2tra2trY2dre3t7e3t3d3Nva2tra2tra2tjZ2tva3N7f3t7c2tja3N3b2tvb29vb3Nrc3uDg3tzb2+Hn6Obj3trb29ve2tze4ODf3dvh7vj7/PXo39vb297b3N7g4eDf3ej6CQwOBvXj3dvb39zb3eDi4N/e6QEWHR0WAujg3Nzg3Nvc3uPi4eDrBh8pKiIO9OXe3uPg3t7f5eTk4u4LJzU1LRr/6eDe5+Th4OHn5+Pj7w4xQEE6Jwrs4+Dr6OTi4+rq5uXuDzZIT0k1FPLl4vDr5uTm6+7q5u4SPVJaVkMg++jm8u3o5ujv9fLr7hRCWV5fUC4E6ef19Ozp6/L7++/0EkBdZmVcPRDs4/X28e3u9QAA9PUQPV1oamFIHPDk9vr49PL2AwT59w46XWhvaFQt++f3+/v49fcCBfvzBzNYZnBrWzgD6Pj7+vj3+f8G//T+KFBmb2tfQhHq9vn5+Pb6/wYG+PcUPlxoZ1xDFvDz9PTy8vX9ChEF+P8cPFBXTzcT8vHz8vDu8PgLGxwM+/4RJTApFgLw7PDx7urq7gMfKyUO/fT2+vXy8u3n6Orq5uTl9xw0OywWA/fx7/H29OLk5ufk4eLqCixAQjkrHRMPFBYO3+Hk5ePf4eL3HTpGR0M+NzEyMSfe3+Lk4t7e3ewLLkBFRkVBPD46Md7e4eLg39zb4vQZMjxBQkI/PTkw3t3f4eDe2Nja5QciLjU5Ojk4Mire3d7e39zZ1tXg9RAkLDAxLiwnH97d3t7g3NfU1NfoAhggJCQiHBML3N7k5+Pe2tre4uPh3NfW2NjY2Njb3uXo4tvZ3ejz9/Xu4djW19fX2Nnd5efi2trk+AoQEAj14NbW1tfY2Nvm6ODZ2OoKICcmHw3u29jX19jZ3Oru5Nzb8BQrMjEtHfre2NjY2Nje7vbq4N71HTU6OjgqBODY2NjZ2N3v/fDg3fYiPEBAPjIK4NjY2dnY2+0A9N/b9iQ+REVDOBPi2dnZ2tnY6wH239r0JUJIR0Y8HOTY2dra2tjoAPvk2vIjRExLSkAh6NjY2tra2OX+AOnb7x9DTk1MRCft19fZ2tvY4v0F7tzrG0BMTExGLPLW1tna29jf+ATu2+YZPktOTEcy+NPX2dra1t3z/+nU3hJAS05NSDkA1Nja29nV2+7+68/U/TdKTk5JPArW1trb2dbY6gX02dXfGEJHR0I3DtrV2Nna2NbnDhDo29jyIjc8OC4N4Nna2drX1OINKgzo4OL0ECIhEv/s6t/b2dfT3QUxMBT56ubr9Pj4+PwA8uLZ19PY+So7NCYPAfv6/QYPFBoJ7NrZ1dbwJTk6ODAmHBYWHCInKxvz29rW1OgYOD4/Pj46NjU1Njc2J/zc3NXT4Q4zO0BAQEA+PT08OTcqANvb1tHaACw4PD5APj49PDo4NikD2drW0NTxIDI5Oz48PDo4Njc0JgTY2tjR0uUTKjQ2ODc2My4qKSohBdjc2M/P3QIgLTAwMC0kGxELDhAE19za0tLZ9BIiJSUlIRYC6tvi7PHZ3+Le3eTzCxoeICAcC/fo4+Tk6Nrh6Ofl6PAEEBQaHBMD+/n39vHv5Obq7fHw8Pf48gcyS0ktAOnq6ufk5+vw9PP0/P/2Dj1WVTkF6urq5uTm6/H2+vsDA/sYSWFeRQrs6efk5Ofs8vj+/wgJ/x1SaWdQEOzp5+Tk6O3z/P4BDRAGJFpxcVgY7enn5OXo7fT+/gAPFQwqYHV2XyHw6Obl5ujs9fz8/gwUDS5keXpkKPLo5ebl5+v0+/r7BxAMMWV8fGku9Ojl5uTm6vL5+PcCCwgsZXx8bDL16OXm5efp8Pb28/0IAiRgd3prM/To5ubm6Ons8fPw+gf/Ek1vdmgu8+jm5ebo6evv8O34CwoDKltqUBLs6Obk5ujp6+/u6vYQFv8CIC8U9uro5uTl5ufq7u7r8xUoEPj4+PHs7Orn5OXm5+ru7ujwFjguDPru7/X57+bk5ebn6e3s5OYNPEo6IhYZIx765OLk5ebo7Ovi4AIyTlJRTExLNADl4uTk5OXp6eLf+CpKUFVWUk8z/+Xi4uLi5Ojo4tzuHkNJTlBQSy785ODi4uLj5+fh2ecTOEBGSUhCJvri3+Hh4ePl5uDa5AgsOD5APzog+OPg4N/f4uTm4Nri/yIuMDMyJg/x4uDg39/h4+Xi3OH3FyYnJRgD9OXg3+Hh4eDj5uTg5PYSHB8U/Obh3uDf4eLi4eTo6Onu/A4WFgz78Orj4N/h4uLi4+fo7PH5AwoKBQAA9uri3+Hi4uLi5OXo6ezu8vLy8/bw5uHf4eLi4uLj5OXk5OTl5efo6ebh4N/i4uLi4uHh4+Pi4uTk5OTl4+Hg4OLi4uLi4d/h4eLi4uLi4+Ti4uDgyszS3ePd0tDiABAO+OTV09jf5OnLzNTg5+DV1OoNHBoE6NjW3OPp78vN1ePs5NXV8BYnJRLu3Nzh5+7zy83X5/Ps3Nr4HzEvGvbi4urw9PfLzdjq+PDe3AApOjkkAOnq8Pb5+cvN2Oz99uLgCTNCQi8L8/H2+/z6y8zY8AL75eQROkhJOhX7+Pr9/frJytfyBv/m6BZCT1BBHAD7/f7898fJ1/MKA+ntHUdUVEYjBf7///v0xsjW9g4G7PInTFhYSikI/wD++fDHydn4Dgbu9y5PXFtMLAkA//ry6cjL2/oOBvD6MlNeXU0rBv/88+rhyMzd/RQP+PswUl5cSykD/ffv5dzHzt7+GxoEACVMWFhFHwD68Ojg2MjO3/wiKxgDDTBFRTAQAPnq4tzVyc7e/ig4MBIAAhESCAID++jc19LJzt4CKj1CMRYGAgACDRUH6tnU0MvR4gUpPkZGNSYbGhwqLRXr19HQzNTmBiY8RkpGQTo7PUE4GOjU0M/O1ukGIzdCRklISEhHRTQR5NTPztLa6gUgMj1CRUhIR0Q/Lgri09DO1NzrBB0tOD5AQ0RDPzooBODS0M7X4O4CFiYyODo8PTw5NCH/3NHPzdni7f4QIi0yNDY0Mi8oGvva0M3M2+Lq/A0cJiorLCMcGhsS9drOzMrc4ur6ChcfIyMcCfn9Cgjw2M7Myt3i6vYGEhobGA337fD/AOvWzszK3uHo8wELEBEMAPLx9Pz65tbOzMve4OPq8/r9/vv08vL29fDg1M7My97g4ePm5+nn5OPi4uTi3tfSzszL29vb3ubu8One2trZ2+Dp7e3m3trc29re6vHv593Z2trc3+Xu8Org29zb2t/s8+7m4N/g397f4+3y6uDb3NrZ3u3z7ufm7vLv5+Hi6vDs5N3c2tnf8PPr6PICCgf66OTp8vDq49zb2uDy9Ojo/BUeGwry6Oz2+PTr2tvb5PTz6OoGJS8qF/zu8vz9+PLa2tzm9/Tn7hMzPDciAvH3//z49Nra3On69efyHj1FQCgD8fj/9/Hu2trc6/316PYoR01HLgLx+wDy6OTa297uAPbo/DVOVE0x/e77AfDi3tnb4PEB9OgBPFJYUjT67PsA7t/b2Nrg8gHy6AtEWFxWN/vr/QLv39rX2N7z/+7nFEpcX1c4/e7+BO7d29bX3vL87ekaTl5hWDj88QMF7t7d1tbe8/np6CFRYWJYMvjyBwPr3N3V1+D1+OXpJFRgYVYv9PUMBOna2tTW3/X35uojUl9hVSry9w4E6NfW1Nbg9/3o4hNQXl1MHvH8EgTm19TU1uL+Cu7b7ixKTDUE7AEWBOXW09TW4gQZAN7W7AwcCe3rCRsB49XS1tfkCCsd8Nna4OTj5v4dIv7i1dLZ2OUMODsQ6uLm6OwAIzUn+97U1NjX5A44RzsWA/4DECg+QCj32tLU19biCjRGSEE0LS43QUVBJPPY09XV1uIIMUJFSEZFRkVGQzoc79fT1tXW4wcsPUJERkdIRkRANBLr1tLU1tflCCg6PUFCQkRDPzwtC+jV0tTV2OYHIjM3Ojk4PD06NCYH59TS1NTW5gYgLS4pHx4nMjIsHgHk1NLT","1":"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","2":"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","3":"ycnGwsbW6wANDwfw1MK+xNTi4dLMz83K0ub+FB4cFADgx77F1ubk1Njm5+bu/xMkKyYaB+bKwsnd7+7c3/cECxQeJi0tKyAJ587J0uj7+ujlBBgnLzQ0LiYgEwDk0NDf9gYH9+YKJDU8PDMjFQr97t3U3PAGEQ4B5Q4rOkI8KRD56+DX1dfoBRYcFQToFDNAR0MvDOTU1NLS1ewOHyQbBOgVNUVOTUAk/ODW0MzM3wEeLCIF5xI0Rk9VVEgyHgbmzcbQ7RQqIgfgBiQ8SVRYWVNLOBPkyMjaBSIfCNPwCyE0SFJaW1lQNgLSwsz3GhwGydjq9wkpQlNcXVZGGODFzPMWGgXGzM/S3f8wS1daVEYb5cjO9BUcCMbMycTH3BE8UlVOPBLlzNf6GBwIytPRyMLE4gwtNjAb+d/X6QkeIAvP5OjZycPH1O77++7e3OT8GSgmD87yDALq0sbGxczS09bi+xQkLyoRy+0THhP86NzO0tje7gQZJSsuJQvI5w8nKyIVCwD/AwkVIiUqLCkeBMbiBiEtLiopJSQlKCwwLionIhj+x93/HCktLS4sKyoqLC8uKCIcD/jE2fkVIicpKignJiYnKCYgGhIG8sLV9A4aICIiIB4dHBsaGBYTDQHvwtHuCBUZGhsaGBMOCggMDwsIAO7AzecADRMVFRMRCPrv6vT+AgP97L3K5fsECgwKCAT25NTO2ej0+/bnu8ff8/wBAgD89+jazsjP2ubv7uG4w9Xo8/X09PTv5NzUz9HX3eLi2Le/ytjg4ODg4ODa1tXQztDS09LM","4":"3eTq7vH08/Ho2ci+u8DS5e3izsTg6PL6/wH/+unRw7y/y+L1+urQxObv/AYMDgsA5Mq/vsng+wkK9tPC7foKFBkdGATgyMHD1vsTGxkE2cL0AxQeIiQa/trHxdDtESMpJhDhwvsLGyYqKhn20sLG4AgjLjAsGOfDARIhKy8sE+rIwND1GzE4NzMi78YGGCYvMCkI28DE5QwqODw7Nyj2yAgaJjAvJPrOvcwAIjU8Pj46LADKBxokLioW58XE4BUtNz5APj4zBssEGCEnHPzTwdP6HSowMjc/PDQPzQAUHh0G4MPG5A0hKyIIDTM+NRTP/hIWDezLu8ftFCYm+cjMAjQ1GNT7EA7817+4v9sLLBDQvLzSFzcf1/YOCvLNvLq8yfAM68XBwrzgEBLY8AwK886+urvByMrEw8PDw8jY6NLsCxcN7NnS0dHS0c3HxcXQ4+jgzOoLGB8YDAgGAf/23srJyd8FEATe6QwaJCkpKysqLSQK2sfH5BQsI+/nDhogLDI1ODk4NyblwMDcDi0o8eQQHyAqMDM4OTg2MQHQyN4KJyPw3w4hISkvMjU0NzY2KQLx+xcoIfXXBR0gKjAzNjY3NzQwJh4eJyge99L7Fh4rNDY5Ojo6NzUwLi4sJhz3zO8KFyg0OTs8PDo4NzIvLSkmHvjH5fsIHS40Njc1MzIyLywqJyMc+sXe8PgKHSMlKCcnJyckIyIcFhD4xdzt8foA9+rh4eLk5urw8Orq7+jC1uvw8u3azs/Pz87P0dPU1drb2LzM5e/0+fLs7ezr6enq7vb69urc3+nx+gEICPnq2M/N1u3/EBD/6dTe7PgDCA0H8+LUzNLnARMgIAz02uDx/gsOEAbw3s7K3fwVJzMvGP3f5fcHFBgUBuzbztLyEiw7Qz0lB+Pn/A4bHhYF6djS4w4uQktOSTMU6uX8ER8gFPzj1tr4JT9PVFhTPiDz5v0SHRcF8t7U5xE2SFRYW1hIKPnoARIXDfTi0tb7IzIyOEJSVkwvAOwDDgv+6NbM5RUqJBQECCpHSDEE7QIHAPHdz9L2Ji4jDOjiBzJCMQbq/QD45tTIz+QBDQ3+3tfsEi4oBuf5/vjn1MjEyNDb4NvS0NPm/wT44/b+++jUy8fIy87OzMzPz9La3+Dn/AkOBfDg09HR0M/RztDT2N3Y0+b9DiEsLicaFxMG8uXb2+j+Dffe4/gKHzA/SlBSTkUmAeTY8h40If3f8gQdLjxGTE9QTDUR6dDmFConDNvtABomNEBJTU5MPR3w1OUPIyQN2Or9EB4sNkBHSUpEOBr/AxskHgTY6PoMFiIuOD9ERkVBPjQwMCsfANTk9QYQHCYxODw/QkJAQD86NSEB0N/u/wgUHigwNDY6PTw8PTguHP3O3Oj2/ggTHSQqLDE1Njg6NCkW+M/X4ezx9Pn9AQQIDhMaHyUoJBL5ztTa4eHe2tbT0tLT1Nrf5+7z8+rM09fc2tbQycbEwsC+vL2/xMnQ08vU2Nza19PPzMrKyszKyMbHycrMytXd5enq6Obi4OLm6Ozr5+Le2dLF0N3s9Pj7+/n2+fz/CQsKBwL04sLHzdbY3N/i4eDi5Obq7vL09O7g","5":"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","6":"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","7":"2uPn5ufr7vLu59vMxMLFzc7Iwrzg6vDy9vr8/vfs3c7GxszW183FvuHu+P4CBgUD/O7YzMXI1eLj18i/5fQBCAwPDwsB7tXJxs7h7/Dfyr/o+ggQFRgWD/zmz8jM3fL//OjQweoBEBogIyAT+uHMydbvBg8H8dfD7gcWIicpJRT53srL5AMXHRT93sPuCx0pLCwmEPHVx9P2FiYqIgjlxu8MIi8wLiUJ587M5QklMTIqE+7M7gwiMDIuHwLiztj4GjA5OTAc+NDrDCMyMywV9t3T5wgnOT4+NSQA1OgLIzEyKg7v3uL+HTRBREI7Kwja5ggfLi8hAebf7g4sPkVFQzwwDuDkAhsqKBLz3t32HTZFSUhFPjIW593+GCMeB+nZ3/8nPUlMS0hBNBnr0vIPGhH22tTpEDRDTE5MSkI2HfDK5AEPBerQ1PQcOUVNTktIQTYf9MXW9gj7387cACQ5R0tMSUU/NSD4xdLt//rk3O0NKjpFSUlGQjwzIPjF0un+BPz6CBwuOUFEREE+Ny4b9sTR6gIQEhQdJjA2Oz08ODQuJhbzxtPrAxIaHyYqLTE0NTQwLCYdD/HL2+8CEBoeIygpKywsLCklHhUI7cze8P4MFRgcICEiIiAhHxsVDAHpytzu/AcNEhYWFRMREBMSDgoG/OfF1+n2/wQICgcB+/f19vb2+vv25L/Q4u72+/z37uTc2NXW1tne5ufdvsnY5Ovw7OHUzcrHx8nJyMnN0M69xdHe5Obg1MrHxsjLzczJxsfGxLzEz9vh4t7WzsrM0Nfb2tbSzsrF","8":"2ens4NLKytLh7/Tz7uHTzM/a4dna8vXfzsnK4f8UGBQO+97Jytfh2d38AuPMyM72HSkqKCMQ6cfH1+Lc4AgP6MzK0AYwNDU1MSb2ycfV5N3iDh72zsvL/zY6Ozw4K/bHytzt4eEWLQrUzMrkJjs6Ojcd7svP6Pjl5h80IOXJzs7wFyotIPnYzN/9BubnIDM2DM7IzMrT3uDdzsrW9hYS5+giMjYs6sjMyMjMzMzOy9ICKhvp5iEzMR7pys3U3OTm0cLIxucfJOvmIC8k9crE2/gRHSAG0sDEzAEa6OUfLAzWxs70IjxERD4MzMDA4Anm4x0q+MzP4Aw5RkdHRzLlvsDS9+LjHiruxs7oHj5HSEdEOPbGxNTv4uIfLfDIytcKO0dHQ0Aw7sPJ2uzi5B4wBc7JydwNMjs2KwbTyMzk8uDmHjgo6c3Q1tzo9Pfr1NDb5wIG4+QfNjsj8OHe29bV3N7e6PsSJA7h4h42OjosFwDy7Oru9QIVJjAxEODgGDM0Nzo1Kx8UDg8YJC80MSwN390TLjM0Njg5NzU0NDc4NjQuJQre3REoLDE2Nzc2NjY2NTIwLysgA9zdDiYsMTIzMzQ0MjIwLy4sJxz/2+IOJiwwMDAwMC4tKyspJyYhFvva6BYuMTIxMC0pJSMhIB4gIRsQ+dzkGzg4ODArJR0VEAwICA4TEgr33dsWOjo2JRgXFwj9/PTx9vwFA/La0wAgHBIIAvz39PLw7/L9AgH66dbQ5PsAAP8A+/Lt7Ozr7vX38ebZzc7O1Njb2dbS0M/OzszMz8/MyMTC","9":"3N/g3NfS1N/w/AgLAPLi0srLzMzd4eLd1M3V4/gHEhQM/enXy8zMzODm59/Ty9XoAhIeIBcF7trOzMzM4ezv5djO1eoGGykqHgv038/MzMzl9Prw4NLQ4f8cLC0fDfjgzsrMzOz7BP7r2s3S4/0WHBED7dvNy8vL8gYWFwXq0s3Mz9/m6OXY0czKysvzCiQsKBHq1M3O0NLT0svMzMzLzPQMKTY7OCD+39bQ0dTUzszKyszM9hArOUBEQzoqGRERFAjr2M7LzM30EC07RElNT1BQTk1MPhv12c7NzPUUMDo/RVBWVVhYV1RJMQnez83M8g4iJBsaLkZWWVtaVkctCODTzszzDBgSAvP7IEZUWltWSi0F4tXOzfIMGhMB6t/4J0RSVk9BI/3g1tLP7AgeIQ7z3d74FjA6NigO8ODf3NXqAyAsJA3x4uTo9wMIBPv09ffu4ef8Giw1KxL25eLi4ubl7gAREgLv5voUJzQ4NScQ/fLq7PEDFyQgEfnm+A8iLzY5PDs2MSwsLDA0Ni4W/Ob2ChsmMDQ3Oz0/Pz08Pj03KxP55vQHFR8nLjU0Njo8Ojg7OzUoDPTm9AQRHCEnLCsvMTQ1NDUyLSEH7+TyAQwWGh4gICQkJissLi0mGQPs3uz6BA8SEQ8MCwcIDRQeIBwR/+rb5vH5/fv27+ni397g5fL8Bwb25dvk6/Du6ODX0M7NzMrL0Nfh5OXc3OTq6+fg1tHQ1dvd2tLLyMnMzs/f5u3x7eji39/l7vb59uze0s3Ly97o9Pj7/Pr5+fwCBggKDQn66trS0NLT0c7My8vNz9LRz8zKysvNzs3S1tjW0s7Lztbd5ebg1cvIys/S1NXZ2tfSzs7W4u33+vjt2MzGy9LW1trc2NLN0d3v+wQHBPnl0sbJ0NTV2tzb1dDW5PoIEhQOAezZysrO0dbd3dvV0NjrBBQcHhgI9N3NzM/S2uTl4dfQ2u8KGyMkHQ765NPS09Tc6/Do2c/U6QkdKCccDfbj19bY2d/0/vbi0s3W6f8WHBAA693Y297d5fwPC/TczczN0N7p6uXa0tTc39/qBiAmGPnYycrKyczQ0dHO093h4OwMKDQ5MBDu1dHP0NPRzczS3eTj8BEsOkFERjwnGhIQCvvh0tTg6OjxEjA/REdKTk9OS0pBLgfh1+Xt7PASKjg9REpOU1NUUkc5Fena6PPx7wYPEhAgO0pRVVVSRzcO5t7r9vPv/vrx4uoZPk1UVVJGNgjl4e749fQEAfPa0vIgQlJSSzsoAOXq+v/39Q0WBeLR1OoKKTcyHgrx6PYHB/j8GCojBuXTz9Pe6Orm4t3sBhYO9f0bNDoyHfzp3tzc3+Pq+REiJRPz9xQuOjw6MB8H+fb9ChgqNTgwGfT0Dyg0OTo8PDo3MzI0ODo6Ni4U8vQKIzA2ODo7PD4+Pj49Ozk1KAzu8ggfKjAzNTc5Ozs6Ojo1My4hBuzwBBokKSosLzQ0NDMyMi4qJBgA6+3/ExwgIiQnKiwsLCsrKiQaEPzq6vwLEhIQDQ4PExsgIyMiIBYK+ejp+QME/fbu6ePh6fP/DRcaEwbz5OTv8u3k3NfU0c7Q0tfi+QgMAe7f"};
+  let defCache = null;
+  function defaultT(){
+    if(defCache) return defCache;
+    defCache = {};
+    for(const [d, b64] of Object.entries(DEFAULT_B64)){
+      const bin = atob(b64), n = TW*TH, arr = [];
+      for(let o=0; o<bin.length; o+=n){
+        const v = new Array(n);
+        for(let k=0;k<n;k++){ let c = bin.charCodeAt(o+k); if(c > 127) c -= 256; v[k] = c/40; }
+        arr.push(v);
+      }
+      defCache[d] = arr;
+    }
+    return defCache;
+  }
+  const ownCount = t => Object.values(t).reduce((a,b) => a + b.length, 0);
+  /* הלימוד הפעיל: של המשתמש אם יש, אחרת ברירת המחדל */
+  function active(){ const own = loadOwn(); return ownCount(own) ? { t:own, src:"user" } : { t:defaultT(), src:"default" }; }
+  const saveT = t => { try{ localStorage.setItem(KEY, JSON.stringify(t)); return true; }catch(e){ return false; } };
+  const missingOf = t => "0123456789".split("").filter(d => !(t[d] && t[d].length));
+
+  /* חיתוך עם שוליים סמויים סביב המסגרת – ספרה שהמסגרת חותכת עדיין נדגמת במלואה */
+  function crop(key){
+    const s = cropState[key]; if(!s) return null;
+    const ir = s.img.getBoundingClientRect(), wr = $("win-"+key).getBoundingClientRect(), m = wr.height*0.6;
+    const cl = (a, lo, hi) => Math.min(hi, Math.max(lo, a));
+    const X0 = cl(wr.left-m, ir.left, ir.right), X1 = cl(wr.right+m, ir.left, ir.right);
+    const Y0 = cl(wr.top-m, ir.top, ir.bottom),  Y1 = cl(wr.bottom+m, ir.top, ir.bottom);
+    const x0 = cl(wr.left, ir.left, ir.right), x1 = cl(wr.right, ir.left, ir.right);
+    const y0 = cl(wr.top, ir.top, ir.bottom),  y1 = cl(wr.bottom, ir.top, ir.bottom);
+    if(x1-x0 < 4 || y1-y0 < 4) return null;
+    const ratio = s.img.naturalWidth / ir.width, k = ratio*UP, c = document.createElement("canvas");
+    c.width = Math.round((X1-X0)*k); c.height = Math.round((Y1-Y0)*k);
+    const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(s.img, (X0-ir.left)*ratio, (Y0-ir.top)*ratio, (X1-X0)*ratio, (Y1-Y0)*ratio, 0, 0, c.width, c.height);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data, g = new Uint8Array(c.width*c.height);
+    for(let i=0,j=0; j<g.length; i+=4, j++) g[j] = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) | 0;
+    return { G:{ w:c.width, h:c.height, g }, rgb:d,
+             inner:{ x:Math.round((x0-X0)*k), y:Math.round((y0-Y0)*k), w:Math.round((x1-x0)*k), h:Math.round((y1-y0)*k) } };
+  }
+  function sub(G, r){
+    const g = new Uint8Array(r.w*r.h);
+    for(let y=0;y<r.h;y++) for(let x=0;x<r.w;x++) g[y*r.w+x] = G.g[Math.min(G.h-1,r.y+y)*G.w + Math.min(G.w-1,r.x+x)];
+    return { w:r.w, h:r.h, g };
+  }
+  function otsuTh(g){
+    const hist = new Array(256).fill(0); for(const v of g) hist[v]++;
+    return otsu(hist, g.length);
+  }
+  function components(ink, w, h){
+    const lab = new Int32Array(w*h), st = new Int32Array(w*h), comps = []; let id = 0;
+    for(let p=0;p<w*h;p++){
+      if(!ink[p] || lab[p]) continue;
+      id++; let sp=0; st[sp++]=p; lab[p]=id;
+      const c = { minX:w, minY:h, maxX:0, maxY:0, area:0 };
+      while(sp){
+        const q=st[--sp], x=q%w, y=(q/w)|0; c.area++;
+        if(x<c.minX)c.minX=x; if(x>c.maxX)c.maxX=x; if(y<c.minY)c.minY=y; if(y>c.maxY)c.maxY=y;
+        for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+          if(!dx&&!dy) continue; const nx=x+dx, ny=y+dy;
+          if(nx<0||ny<0||nx>=w||ny>=h) continue; const n=ny*w+nx;
+          if(ink[n] && !lab[n]){ lab[n]=id; st[sp++]=n; } }
+      }
+      comps.push(c);
+    }
+    return comps;
+  }
+  /* איתור הגלגלות: אזורים בהירים בגודל של ספרה שלא נוגעים בקצה המסגרת; חלקים חופפים מאוחדים */
+  function locate(Gi){
+    const { w, h, g } = Gi, th = otsuTh(g), ink = new Uint8Array(w*h);
+    for(let i=0;i<ink.length;i++) ink[i] = g[i] > th ? 1 : 0;
+    const cs = components(ink, w, h).filter(c =>
+      c.minX>0 && c.minY>0 && c.maxX<w-1 && c.maxY<h-1 &&
+      (c.maxY-c.minY+1) >= h*0.2 && (c.maxX-c.minX+1) <= w*0.35 && c.area >= w*h*0.0008)
+      .sort((a,b) => a.minX - b.minX);
+    const tol = Math.round(w*0.01), gr = [];
+    for(const c of cs){
+      const q = gr[gr.length-1];
+      if(q && c.minX <= q.maxX + tol){ q.minX=Math.min(q.minX,c.minX); q.maxX=Math.max(q.maxX,c.maxX);
+        q.minY=Math.min(q.minY,c.minY); q.maxY=Math.max(q.maxY,c.maxY); }
+      else gr.push({ minX:c.minX, maxX:c.maxX, minY:c.minY, maxY:c.maxY });
+    }
+    if(!gr.length) return [];
+    const gw = Math.max(...gr.map(q => q.maxX-q.minX+1)), gh = Math.max(...gr.map(q => q.maxY-q.minY+1));
+    const cys = gr.map(q => (q.minY+q.maxY)/2).sort((a,b) => a-b), cy = cys[cys.length>>1];
+    const found = gr.map(q => ({ x:(q.minX+q.maxX)/2 - gw/2, y:cy - gh/2, w:gw, h:gh }));
+    /* חלון נשאר רק אם יש בו ניגודיות של גלגלת אמיתית (ספרה כהה על גלגלת בהירה);
+       אזור בהיר וחלק של גוף המונה לא עומד בזה */
+    const sd = r => { let s=0, q=0, n=0;
+      for(let y=Math.max(0,Math.round(r.y)); y<Math.min(h,Math.round(r.y+r.h)); y+=2)
+        for(let x=Math.max(0,Math.round(r.x)); x<Math.min(w,Math.round(r.x+r.w)); x+=2){ const v=g[y*w+x]; s+=v; q+=v*v; n++; }
+      return n ? Math.sqrt(Math.max(0, q/n - (s/n)*(s/n))) : 0; };
+    const ref = found.map(sd).sort((a,b)=>a-b)[found.length>>1];
+    /* נמדד: גלגלות 26–34, אזור בהיר על גוף המונה 14 – הסינון חל גם על חלונות שנמצאו וגם על משלימים */
+    const real = found.filter(c => sd(c) >= 0.6*ref);
+    return gridify(real, w).filter(c => !c.added || sd(c) >= 0.6*ref);
+  }
+  /* הגלגלות במרווח קבוע: חלון שזז מוחזר למקומו, וחלון חסר בקצה משלים כל עוד מרכזו בתוך המסגרת */
+  function gridify(cells, iw){
+    if(cells.length < 2) return cells;
+    const med = a => { const s = a.slice().sort((p,q)=>p-q); return s[s.length>>1]; };
+    const cx = cells.map(c => c.x + c.w/2), d = [];
+    for(let i=1;i<cx.length;i++) d.push(cx[i]-cx[i-1]);
+    let p = med(d);
+    const k = cx.map(x => Math.round((x-cx[0])/p)), pairs = [];
+    for(let i=1;i<cx.length;i++) if(k[i]>k[i-1]) pairs.push((cx[i]-cx[i-1])/(k[i]-k[i-1]));
+    if(pairs.length) p = med(pairs);
+    const x0 = med(cx.map((x,i) => x - k[i]*p)), W = cells[0].w, H = cells[0].h, y = cells[0].y;
+    /* השלמה של חלון אחד לכל היותר בכל צד – ספרה שהמסגרת חתכה; לא "מילוי" של כל רוחב המסגרת */
+    let kmin = Math.min(...k), kmax = Math.max(...k);
+    const k0 = kmin, k1 = kmax;
+    if(x0 + (kmin-1)*p >= 0) kmin--;
+    if(x0 + (kmax+1)*p <= iw) kmax++;
+    const out = []; for(let j=kmin;j<=kmax;j++) out.push({ x:x0 + j*p - W/2, y, w:W, h:H, added: j<k0 || j>k1 || !k.includes(j) });
+    return out;
+  }
+  /* הגלגלת האדומה (עשיריות) מזוהה לפי שיעור הפיקסלים האדומים בחלון – גם כשהיא נכנסת למסגרת רק בחלקה */
+  function redFrac(C, r){
+    let red=0, n=0;
+    const x0 = Math.max(0, Math.round(r.x)), x1 = Math.min(C.G.w, Math.round(r.x+r.w));
+    const y0 = Math.max(0, Math.round(r.y)), y1 = Math.min(C.G.h, Math.round(r.y+r.h));
+    for(let y=y0;y<y1;y+=2) for(let x=x0;x<x1;x+=2){
+      const i=(y*C.G.w+x)*4, R=C.rgb[i], G=C.rgb[i+1], B=C.rgb[i+2];
+      if(R > 90 && R > 1.5*G && R > 1.5*B) red++; n++; }
+    return n ? red/n : 0;
+  }
+  /* דגימה לרשת 20×30 בממוצע שטח ונרמול לממוצע 0 וסטיית תקן 1 – רק הצורה משפיעה, לא הבהירות */
+  function sample(G, r){
+    const { w, h, g } = G, v = new Float32Array(TW*TH), sx = r.w/TW, sy = r.h/TH;
+    for(let j=0;j<TH;j++) for(let i=0;i<TW;i++){
+      const xa = r.x+i*sx, ya = r.y+j*sy;
+      const xb = Math.max(Math.floor(xa)+1, Math.ceil(xa+sx)), yb = Math.max(Math.floor(ya)+1, Math.ceil(ya+sy));
+      let s=0, n=0;
+      for(let y=Math.floor(ya); y<yb; y++) for(let x=Math.floor(xa); x<xb; x++){
+        s += g[Math.min(h-1, Math.max(0,y))*w + Math.min(w-1, Math.max(0,x))]; n++; }
+      v[j*TW+i] = s/n;
+    }
+    let m=0; for(const a of v) m+=a; m/=v.length;
+    let q=0; for(const a of v) q+=(a-m)*(a-m);
+    const sd = Math.sqrt(q/v.length) || 1;
+    for(let k=0;k<v.length;k++) v[k] = (v[k]-m)/sd;
+    return v;
+  }
+  function variants(G, r){
+    const out = [], cx = r.x + r.w/2, cy = r.y + r.h/2;
+    for(const s of SCALES){
+      const w = r.w*s, h = r.h*s, dx = w/TW, dy = h/TH;
+      for(let j=-SH;j<=SH;j++) for(let i=-SH;i<=SH;i++) out.push(sample(G, { x:cx-w/2+i*dx, y:cy-h/2+j*dy, w, h }));
+    }
+    return out;
+  }
+  function classify(qs, t){
+    const res = [];
+    for(const d of Object.keys(t)){
+      let best = -2;
+      for(const tp of t[d]) for(const q of qs){ let s=0; for(let k=0;k<q.length;k++) s += q[k]*tp[k]; s /= q.length; if(s > best) best = s; }
+      res.push({ d, score:best });
+    }
+    return res.sort((a,b) => b.score - a.score);
+  }
+  function thumb(G, r){
+    const W = Math.max(1, Math.round(r.w)), H = Math.max(1, Math.round(r.h)), c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const ctx = c.getContext("2d"), im = ctx.createImageData(W, H), d = im.data, vals = new Uint8Array(W*H);
+    let mn = 255, mx = 0;
+    for(let y=0;y<H;y++) for(let x=0;x<W;x++){
+      const v = G.g[Math.min(G.h-1, Math.max(0, Math.round(r.y+y)))*G.w + Math.min(G.w-1, Math.max(0, Math.round(r.x+x)))];
+      vals[y*W+x] = v; if(v<mn) mn=v; if(v>mx) mx=v; }
+    const k = 255/Math.max(1, mx-mn);
+    for(let i=0;i<vals.length;i++){ const v=(vals[i]-mn)*k; d[4*i]=d[4*i+1]=d[4*i+2]=v; d[4*i+3]=255; }
+    ctx.putImageData(im, 0, 0); return c;
+  }
+
+  /* סריקה: איתור, השוואה, והצגה בשער האישור */
+  function scan(key, C){
+    const I = C.inner;
+    let cells = locate(sub(C.G, I)).map(c => ({ ...c, x:c.x + I.x, y:c.y + I.y }));
+    /* החלון האדום הראשון וכל מה שמימינו יוצאים מהקריאה */
+    const firstRed = cells.findIndex(c => redFrac(C, c) > 0.05);   /* חלון רגיל: 0% אדום; גלגלת אדומה: 11% ומעלה */
+    const redCount = firstRed < 0 ? 0 : cells.length - firstRed;
+    if(firstRed >= 0) cells = cells.slice(0, firstRed);
+    const A = active(), t = A.t, has = Object.keys(t).length > 0;
+    const res = cells.map(r => {
+      if(!has) return { d:null, low:true };
+      const c = classify(variants(C.G, r), t), b = c[0], m = c[1] ? b.score - c[1].score : 1;
+      return { d:b.d, score:b.score, margin:m, low: b.score < MIN_SCORE || m < MIN_MARGIN };
+    });
+    last[key] = { G:C.G, cells, res };
+
+    const box = $("cells-"+key); box.innerHTML = "";
+    cells.forEach((r, i) => {
+      const x = res[i], el = document.createElement("div");
+      el.className = "dcell" + (x.low ? " low" : "") + (r.added ? " added" : "");
+      el.appendChild(thumb(C.G, r));
+      el.insertAdjacentHTML("beforeend", `<div class="c">${x.d === null ? "·" : x.d + (x.low ? "?" : "")}</div>
+        <div class="k">${x.d === null ? "" : x.score.toFixed(2)}</div>`);
+      box.appendChild(el);
+    });
+
+    const reading = res.map(x => x.d ?? "").join(""), value = has ? reading.replace(/^0+(?=\d)/, "") : "";
+    const lows = res.filter(x => x.low).length, missing = missingOf(t);
+    $("out-"+key).textContent = value || "—";
+    if(key === "train"){
+      /* בלימוד לא ממלאים את התשובה מראש – אחרת ניחוש שגוי היה נלמד כנכון */
+      $("edit-"+key).value = "";
+      $("guess-"+key).innerHTML = has
+        ? `מתחת לכל ספרה: מה שהאפליקציה מזהה כרגע (<span dir="ltr">${reading}</span>). זה רק ניחוש – הקלד את מה שבאמת רשום על המונה.`
+        : `אותרו ${cells.length} ספרות.`;
+    } else $("edit-"+key).value = value;
+    let msg;
+    if(!cells.length) msg = "לא אותרו ספרות. קרב את התמונה, ומקם את הספרות השחורות בתוך המסגרת.";
+    else if(!has) msg = key==="train"
+      ? ""
+      : `עוד לא נלמדו ספרות המונה, ולכן אין זיהוי אוטומטי. הקלד את הקריאה ידנית, או למד את האפליקציה בלשונית "לימוד מונה".`;
+    else if(key==="train") msg = "";
+    else if(lows) msg = `⚠ ${lows} ספרות מסומנות ב‑? – בדוק ותקן לפני האישור.`;
+    else msg = "כל הספרות זוהו בביטחון גבוה – בדוק ואשר.";
+    if(has && missing.length && key!=="train") msg += ` טרם נלמדו: ${missing.join(" ")} – כל ספרה יכולה להיות אחת מהן.`;
+    if(A.src === "default" && key!=="train" && cells.length)
+      msg += ` (זיהוי לפי לימוד ברירת המחדל. אם הזיהוי שגוי כי המונה שלך שונה – למד אותו בלשונית "לימוד מונה".)`;
+    if(redCount) msg += " הגלגלת האדומה (עשיריות) לא נכללת בקריאה.";
+    $("conf-"+key).textContent = msg;
+  }
+
+  /* למידה מקריאה שאושרה: הערך מיושר לימין מול החלונות, ואפסים מובילים משלימים משמאל */
+  function learn(key, text){
+    const L = last[key];
+    if(!L || !L.cells.length) return "";
+    if(!/^\d+$/.test(text)) return "(הספרות לא נלמדו – הקריאה אינה מספר שלם.)";
+    if(text.length > L.cells.length) return `(הספרות לא נלמדו – בקריאה ${text.length} ספרות, אך אותרו ${L.cells.length}.)`;
+    const digits = text.padStart(L.cells.length, "0"), t = loadOwn(), before = new Set(Object.keys(t).filter(d => t[d].length));
+    if(!ownCount(t) && !confirm("להתחיל לימוד למונה שלך?\n\nמרגע זה האפליקציה תשתמש רק בלימוד שלך, ולא בלימוד ברירת המחדל. "
+        + "ספרות שעוד לא לימדת יסומנו לבדיקה עד שתלמד אותן.\n\nאפשר לחזור לברירת המחדל בכל עת בכפתור \"מחק את הלימוד שלי\"."))
+      return "(הלימוד בוטל – האפליקציה ממשיכה עם לימוד ברירת המחדל.)";
+    /* בדיקת עקביות: ספרה שזוהתה בביטחון חייבת להתאים לספרה שמוצמדת לחלון שלה.
+       אי־התאמה מעידה על הצמדה שגויה (למשל ספרה שנחתכה בקצה), ואז לא לומדים כדי לא לקלקל את התבניות */
+    /* ספרה אחת שלא מתאימה היא בדרך כלל ספרה שעוד לא נלמדה ודומה לאחרת – את זו בדיוק צריך ללמוד.
+       הצמדה שגויה מזיזה את כל הקריאה, ולכן חוסמים רק כשלפחות 2 ספרות ודאיות, ולפחות חצי מהן, לא מתאימות */
+    const sure = L.res.map((x, i) => i).filter(i => L.res[i].d !== null && !L.res[i].low);
+    const clash = sure.filter(i => L.res[i].d !== digits[i]);
+    if(clash.length >= 2 && clash.length*2 >= sure.length)
+      return `(הספרות לא נלמדו – הקריאה שאישרת לא מתיישבת עם ${clash.length} ספרות שזוהו בוודאות, בחלונות ${clash.map(i=>i+1).join(", ")}. ודא שהמסגרת כוללת את כל הספרות השחורות ורק אותן, וסרוק שוב.)`;
+    let n = 0;
+    L.cells.forEach((r, i) => {
+      if(r.added) return;                    /* חלון שהושלם בקצה לא נלמד – ייתכן שאין בו גלגלת */
+      const d = digits[i]; n++;
+      (t[d] = t[d] || []).push(Array.from(sample(L.G, r), x => Math.round(x*100)/100));
+      if(t[d].length > MAX_PER_DIGIT) t[d].shift();
+    });
+    delete last[key];                        /* אותה סריקה לא נלמדת פעמיים */
+    [...$("cells-"+key).querySelectorAll(".dcell")].forEach((el, i) => {   /* מציג איזו ספרה נלמדה מכל חלון */
+      if(L.cells[i].added){ el.querySelector(".k").textContent = "לא נלמד"; return; }
+      el.classList.remove("low"); el.querySelector(".c").textContent = digits[i]; el.querySelector(".k").textContent = "נלמד"; });
+    $("out-"+key).textContent = text; $("conf-"+key).textContent = "";   /* הקריאה שנלמדה במקום הזיהוי הקודם */
+    if($("guess-"+key)) $("guess-"+key).textContent = "מתחת לכל ספרה: הספרה שנלמדה ממנה.";
+    if(!saveT(t)) return "(שמירת הספרות נכשלה.)";
+    status();
+    const missing = missingOf(t);
+    const fresh = [...new Set(L.cells.map((r,i) => r.added ? null : digits[i]).filter(d => d !== null && !before.has(d)))].sort();
+    return (fresh.length ? `הספרות נלמדו – חדשות: ${fresh.join(" ")}.` : "הספרות נלמדו – נוספו דוגמאות לספרות שכבר הכרת.")
+         + (missing.length ? ` עוד חסרות: ${missing.join(" ")} – העלה צילום של קריאה שבה הן מופיעות בגלגלות השחורות.` : " כל 10 הספרות מכוסות ✓");
+  }
+  function status(){
+    const A = active(), t = A.t, el = $("dm-status"), grid = $("dm-grid"), src = $("dm-src");
+    const n = ownCount(t), missing = missingOf(t);
+    if(src) src.innerHTML = A.src === "default"
+      ? `<b>בשימוש: לימוד ברירת המחדל</b> – נלמד מ‑5 צילומים של מונה ADR. אם המונה שלך שונה והזיהוי לא נכון, למד אותו לפי השלבים למטה – הלימוד שלך יחליף את ברירת המחדל.`
+      : `<b>בשימוש: הלימוד שלך</b> – ${n} דוגמאות. לימוד ברירת המחדל לא משמש כרגע. לחזרה אליו – "מחק את הלימוד שלי" למטה.`;
+    if(grid) grid.innerHTML = "0123456789".split("").map(d => { const c = (t[d]||[]).length;
+      return `<div class="${c ? "yes" : "no"}"><div class="n">${d}</div><div class="k">${c ? "✓ "+c : "חסר"}</div></div>`; }).join("");
+    if(el) el.textContent = A.src === "default" ? "" : !n ? "עוד לא נלמדה אף ספרה. התחל מהשלבים למטה."
+      : missing.length ? `חסרות עוד: ${missing.join(" ")}. המספר בכל ריבוע ירוק = כמה דוגמאות נשמרו לספרה (עד ${MAX_PER_DIGIT}).`
+      : `כל 10 הספרות נלמדו ✓ (${n} דוגמאות). אפשר להמשיך ללמד – יותר דוגמאות משפרות את הזיהוי.`;
+  }
+  /* העברה בין מכשירים: הלימוד שמור רק בדפדפן הנוכחי, ולכן מייצאים לקובץ ומייבאים במכשיר השני */
+  function exportFile(){
+    const t = loadOwn();
+    if(!ownCount(t)){ alert("אתה משתמש בלימוד ברירת המחדל, שמובנה באפליקציה בכל מכשיר – אין לימוד אישי לייצא."); return; }
+    const blob = new Blob([JSON.stringify({ app:"wattbill-digits", v:1, tw:TW, th:TH, templates:t })], { type:"application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `wattbill-digits-${iso(new Date())}.json`; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+  function importFile(ev){
+    const f = ev.target.files && ev.target.files[0]; ev.target.value = ""; if(!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      let data; try{ data = JSON.parse(fr.result); }catch(e){ alert("הקובץ אינו קובץ לימוד תקין."); return; }
+      if(!data || data.app !== "wattbill-digits" || data.tw !== TW || data.th !== TH || typeof data.templates !== "object"){
+        alert("הקובץ אינו קובץ לימוד של האפליקציה הזו."); return; }
+      const t = loadOwn(); let added = 0;
+      if(!ownCount(t) && !confirm("הייבוא יחליף את לימוד ברירת המחדל: מרגע זה האפליקציה תשתמש רק בלימוד מהקובץ. להמשיך?")) return;
+      for(const d of "0123456789"){
+        const inc = (data.templates[d] || []).filter(v => Array.isArray(v) && v.length === TW*TH && v.every(Number.isFinite));
+        if(!inc.length) continue;
+        t[d] = (t[d] || []).concat(inc).slice(-MAX_PER_DIGIT); added += inc.length;
+      }
+      if(!added){ alert("לא נמצאו בקובץ דוגמאות תקינות."); return; }
+      if(!saveT(t)){ alert("שמירת הלימוד נכשלה."); return; }
+      status(); alert(`יובאו ${added} דוגמאות.`);
+    };
+    fr.readAsText(f);
+  }
+  function wipe(){
+    if(!ownCount(loadOwn())){ alert("אין לימוד אישי – האפליקציה כבר משתמשת בלימוד ברירת המחדל."); return; }
+    if(!confirm("למחוק את הלימוד שלך ולחזור ללימוד ברירת המחדל?")) return;
+    try{ localStorage.removeItem(KEY); }catch(e){}
+    status(); alert("הלימוד שלך נמחק. האפליקציה חזרה ללימוד ברירת המחדל.");
+  }
+  return { crop, scan, learn, status, wipe, exportFile, importFile };
+})();
+
+function doCrop(key){
+  if(!cropState[key]) return;
+  const C = DM.crop(key);                    /* החיתוך נלקח לפני שהמסגרת נסגרת */
+  if(!C){ alert("האזור שנבחר מחוץ לתמונה."); return; }
+  $("gate-"+key).classList.remove("hidden"); $("gate-"+key).classList.remove("done");
+  $("gtitle-"+key).textContent = key==="train" ? "שלב 3: הקלד את המספר שעל המונה" : "בדוק את הספרות שזוהו ואשר";
+  $("lock-"+key).textContent = key==="train" ? "" : "הקריאה לא תיכנס לחישוב עד שתאשר.";
+  $("out-"+key).textContent = "סורק…"; $("conf-"+key).textContent = ""; $("cells-"+key).innerHTML = "";
+  closeCropper(key);
+  setTimeout(() => {                         /* נותן לדפדפן לצייר את "סורק…" לפני החישוב */
+    try{ DM.scan(key, C); }
+    catch(e){ $("out-"+key).textContent = "שגיאה"; $("conf-"+key).textContent = (e && e.message) || String(e); }
+  }, 30);
+}
+function confirmReading(key){
+  const v=parseFloat($("edit-"+key).value);
+  if(!isFinite(v)){ alert("אין מספר לאשר."); return; }
+  readings[key]={value:v,confirmed:true}; $("man-"+key).value=v;
+  $("gate-"+key).classList.add("done");
+  $("gtitle-"+key).textContent="✓ אושר ונכנס לחישוב";
+  $("lock-"+key).textContent="אפשר לצלם שוב – האישור יידרש מחדש.";
+  setTimeout(closeScan, 500);          /* המספר נכנס לשדה – חוזרים למסך החישוב */
+  recalc();
+}
+function manualReading(key,val){
+  const v=parseFloat(val);
+  readings[key]=isFinite(v)?{value:v,confirmed:true}:{value:null,confirmed:false};
+  recalc();
+}
+
+/* =========================================================================
+   7. חישוב
+   ========================================================================= */
+let mode="kwh";
+function setMode(m){
+  mode=m; save("mode",m);
+  $("m-kwh").classList.toggle("on",m==="kwh"); $("m-meter").classList.toggle("on",m==="meter");
+  $("sec-kwh").classList.toggle("hidden",m!=="kwh"); $("sec-meter").classList.toggle("hidden",m!=="meter");
+  recalc();
+}
+function kvaOf(){ const ph=Number($("phases").value),a=Number($("amps").value); return ph===1?a*0.23:a*0.69; }
+function getKwh(){
+  if(mode==="kwh") return {kwh:parseFloat($("kwh-direct").value)||0,ok:true,msg:""};
+  const p=readings.prev,c=readings.curr;
+  if(!p.confirmed||!c.confirmed) return {kwh:0,ok:false,
+    msg:"חסרות קריאות: "+(p.confirmed?"":"קודמת ")+(c.confirmed?"":"נוכחית")};
+  if(c.value<p.value) return {kwh:0,ok:false,msg:"הקריאה הנוכחית קטנה מהקודמת"};
+  const f=parseFloat($("meter-factor").value)||1;
+  return {kwh:(c.value-p.value)*f,ok:true,
+    msg:`${c.value.toLocaleString("he-IL")} − ${p.value.toLocaleString("he-IL")}`+(f!==1?` × ${f}`:"")};
+}
+function line(name,formula,ex,vat,cls){
+  return `<tr class="${cls||""}"><td><div class="comp">${name}</div><div class="formula">${formula}</div></td>
+    <td class="n">${nis(ex)}</td><td class="n v">${nis(vat)}</td><td class="n">${nis(ex+vat)}</td></tr>`;
+}
+
+/* איזה תאריכים נדרשים בכלל:
+   – רכיב הצריכה זקוק רק לתאריך אחד, שקובע איזה תעריף חל.
+   – התשלום הקבוע והקיבולת נגבים לפי מספר ימים, ולכן מחייבים תקופה.
+   – במצב שתי קריאות: רק כששני תאריכי הקריאה ידועים יש תקופה, והצריכה מתחלקת בין התעריפים לפי ימים
+     (אומדן – מניח צריכה אחידה). כשחסר תאריך אין תקופה: כל הצריכה לפי התעריף בתאריך ייחוס,
+     והתשלומים היומיים רק אם הוקלד מספר ימים. */
+function getPeriod(){
+  const today=iso(new Date());
+  if(mode==="meter"){
+    const a=$("date-prev").value, b=$("date-curr").value;
+    if(a && b && a!==b) return { from:D(a), to:D(b), kind:"derived" };
+    /* תאריך חסר, או שני תאריכים זהים (שתי קריאות שונות לא נלקחות באותו יום – כנראה תאריך שמירת הקבצים) */
+    const r=$("d-ref").value||today, n=parseInt($("m-days").value);
+    return { from:D(r), to:D(r), kind:"meter-ref", mdays: n>0 ? n : null, sameDay: !!(a && b && a===b) };
+  }
+  /* כמות קוט״ש: אין תקופה אמיתית – תאריך ייחוס לתעריף, ומספר ימים אופציונלי לתשלומים היומיים */
+  const r=$("d-ref").value||today, n=parseInt($("m-days").value);
+  return { from:D(r), to:D(r), kind:"meter-ref", mdays: n>0 ? n : null };
+}
+
+function recalc(){
+  const fixedOn=$("inc-f").checked || $("inc-c").checked;
+  const per=getPeriod(), from=per.from, to=per.to;
+
+  const mref = per.kind==="meter-ref";
+  $("dt-single").classList.toggle("hidden", per.kind!=="single" && !mref);
+  $("dt-mdays").classList.toggle("hidden", !mref);
+  $("dt-range").classList.toggle("hidden",  per.kind!=="range");
+  $("dt-derived").classList.toggle("hidden",per.kind!=="derived");
+  $("dt-mdates").classList.toggle("hidden", mode!=="meter");
+  $("m-days-lbl").textContent = mode==="meter" ? "כמה ימים עברו בין הקריאות? (לא חובה)" : "כמה ימים כולל החשבון? (לא חובה)";
+  $("dt-title").textContent = per.kind==="single" || mref ? "תאריך החישוב"
+                            : per.kind==="derived" ? "התקופה – נגזרת מהקריאות" : "תקופת החיוב";
+
+  if(to<from){
+    $("days-note").textContent = per.kind==="derived"
+      ? "⚠ תאריך הקריאה הנוכחית מוקדם מהקודמת – תקן את התאריכים בהגדרות (שנה ›)."
+      : "⚠ תאריך הסיום מוקדם מההתחלה.";
+    return;
+  }
+  const days = mref ? (per.mdays||0) : Math.round((to-from)/DAY)+1;
+
+  if(per.kind==="derived")
+    $("derived-note").innerHTML = `התקופה נלקחת מתאריכי שתי הקריאות: <b>${heb(iso(from))}</b> עד <b>${heb(iso(to))}</b>.
+      ${fixedOn ? "התשלום הקבוע והקיבולת מחושבים לפי מספר הימים שביניהן." : ""}
+      אם התעריף השתנה בתקופה, הצריכה מתחלקת לפי מספר הימים – אומדן שמניח צריכה אחידה.
+      לשינוי – ערוך את תאריכי הקריאות כאן למעלה.`;
+
+  $("days-note").innerHTML = per.kind==="single"
+    ? `חישוב לפי התעריף שהיה בתוקף ב‑${heb(iso(from))}`
+    : mref && mode==="kwh"
+    ? `כל הצריכה מחושבת לפי התעריף שהיה בתוקף ב‑<b>${heb(iso(from))}</b>.`
+    : mref
+    ? `${per.sameDay ? "לשתי הקריאות הוזן אותו תאריך, וזה לא יכול להיות מועד הקריאה של שתיהן" : "לא ידועים תאריכים לשתי הקריאות"}, ולכן אין תקופה: כל הצריכה מחושבת לפי התעריף שהיה בתוקף ב‑<b>${heb(iso(from))}</b>.
+       אם התעריף השתנה בין הקריאות, אין דרך לפצל את הצריכה בלי תאריכים. להוספת תקופה – מלא את שני תאריכי הקריאות כאן למעלה.`
+    : `${days} ימים · ${heb(iso(from))} עד ${heb(iso(to))} (כולל שני התאריכים)`;
+  $("kva-note").textContent=`קיבולת: ${kvaOf().toFixed(2)} KVA`;
+
+
+  /* שלב 1 – הצריכה, בראש המסך */
+  const {kwh,ok,msg}=getKwh();
+  ["prev","curr"].forEach(k=>{
+    const r=readings[k];
+    $("mtr-"+k).classList.toggle("ready", r.confirmed);
+    $("tick-"+k).textContent = r.confirmed ? "✓ "+r.value.toLocaleString("he-IL") : "";
+  });
+  const hero=$("kwh-hero");
+  if(mode==="meter" && !ok){
+    hero.className="kwh-hero bad";
+    hero.innerHTML=`<div class="n">${msg}</div><div class="l">השלם את הקריאות כדי לחשב</div>`;
+  } else {
+    hero.className="kwh-hero";
+    hero.innerHTML=`<div class="n">${kwh.toFixed(1)}</div>
+      <div class="l">קוט״ש לחישוב${mode==="meter"&&msg?" · "+msg:""}</div>`;
+  }
+
+  const segs=splitPeriod(from,to);
+  if(mref) segs.forEach(sg => sg.days = per.mdays||0);      /* קטע יחיד בתאריך הייחוס */
+  /* התשלום הקבוע והקיבולת מחושבים תמיד כשידוע מספר ימים – כדי שאפשר יהיה לראות כמה כל אחד מוסיף;
+     נכללים בסה״כ רק אם מסומנים */
+  const incF=$("inc-f").checked, incC=$("inc-c").checked, fixedWanted = incF || incC;
+  const canDaily = !(mref && !per.mdays), fixedNoDays = fixedWanted && !canDaily;
+  const withFixed=canDaily, kva=kvaOf(), discPct=Math.max(0,parseFloat($("discount").value)||0);
+  let eEx=0,eVat=0,dEx=0,dVat=0,fEx=0,fVat=0,cEx=0,cVat=0;
+  const eRows=[],fNotes=[],cNotes=[],estHits=new Set();
+
+  segs.forEach(s=>{
+    const p=s.picks,vr=p.vat.value;
+    COMPONENTS.forEach(c=>{ if(p[c.key].estimated) estHits.add(c.name); });
+    const share = mref ? kwh : kwh*(s.days/days), ex=share*p.energy.value, v=ex*vr;
+    eEx+=ex; eVat+=v;
+    const dx=ex*discPct/100; dEx+=dx; dVat+=dx*vr;
+    eRows.push(line(`צריכה · ${heb(iso(s.from))}–${heb(iso(s.to))}`,
+      `תעריף בתוקף: <code>${ag(p.energy.value)}</code> (מ‑${heb(p.energy.from)})${p.energy.estimated?' ⚠משוער':''}<br>
+       ${mref ? `כל הצריכה לפי התעריף בתאריך הייחוס = ${share.toFixed(1)} kWh`
+              : segs.length>1 ? `חלק יחסי לפי ימים <code>${s.days}/${days}</code> = ${share.toFixed(1)} kWh (אומדן: מניח צריכה אחידה)`
+              : `${share.toFixed(1)} kWh`}<br>
+       <code>${share.toFixed(1)} × ${ag(p.energy.value)}</code> = ${nis(ex)} לפני מע״מ<br>
+       מע״מ ${pct(vr)} → <code>${nis(ex)} × ${vr.toFixed(2)}</code> = ${nis(v)}`, ex, v));
+    if(withFixed){
+      const a=p.fixedA.value,b=p.fixedB.value,cr=p.capacity.value;
+      const fx=(a+b)*12/365*s.days, cx=cr*kva/365*s.days;
+      fEx+=fx; fVat+=fx*vr; cEx+=cx; cVat+=cx*vr;
+      fNotes.push(`${s.days} ימים · א׳ ${nis(a)} + ב׳ ${nis(b)}${p.fixedA.estimated?' ⚠משוער':''}<br>
+        <code>(${a}+${b}) × 12 ÷ 365 × ${s.days}</code> = ${nis(fx)} + מע״מ ${nis(fx*vr)}`);
+      cNotes.push(`${s.days} ימים · ${nis(cr)} לכל KVA${p.capacity.estimated?' ⚠משוער':''}<br>
+        <code>${cr} × ${kva.toFixed(2)} ÷ 365 × ${s.days}</code> = ${nis(cx)} + מע״מ ${nis(cx*vr)}`);
+    }
+  });
+
+  const splitWarn = per.kind==="derived" && segs.length>1
+    ? `<div class="warnbox">ℹ התעריף השתנה בין שתי הקריאות. הצריכה חולקה בין התעריפים לפי מספר הימים בכל חלק –
+       זה <b>אומדן</b> שמניח צריכה אחידה לאורך התקופה, לא מדידה.</div>` : "";
+  const fixedWarn = fixedNoDays
+    ? `<div class="warnbox">ℹ התשלום הקבוע והקיבולת <b>לא נכללו בסה״כ</b>: הם נגבים לפי ימים, ולא הוזן מספר ימים.
+       להכללתם – לחץ "שנה ›" והקלד מספר ימים${mode==="meter" ? ", או מלא את תאריכי הקריאות" : ""}.</div>` : "";
+  $("est-warn").innerHTML = splitWarn + fixedWarn + (estHits.size
+    ? `<div class="warnbox">⚠ החישוב משתמש בערכים <b>משוערים</b> ב: ${[...estHits].join(", ")}.
+       אין ערך מאומת לתאריכים האלה. אם יש לך את החשבון המקורי – הוסף שורה בטבלת התעריפים.</div>` : "");
+
+  const uF = withFixed && incF, uC = withFixed && incC;
+  const totEx=(eEx-dEx)+(uF?fEx:0)+(uC?cEx:0), totVat=(eVat-dVat)+(uF?fVat:0)+(uC?cVat:0), tot=totEx+totVat;
+  $("total-big").textContent=nis(tot);
+  $("total-sub").textContent=`${kwh.toFixed(1)} קוט״ש`+(days?` · ${days} ימים`:"")+(discPct?` · הנחה ${discPct}%`:"");
+  $("t-ex").textContent=nis(totEx); $("t-vat").textContent=nis(totVat); $("t-inc").textContent=nis(tot);
+  /* סיכום מהיר: עלות הצריכה לבד מול הכל, כולל מע״מ */
+  const energyInc=(eEx-dEx)+(eVat-dVat);
+  $("r-energy").textContent=nis(energyInc);
+  /* בלי מספר ימים אי אפשר לחשב – השורה מזמינה להזין ימים */
+  const dailyRow = (row, val, inc, amount) => {
+    $(row).classList.toggle("na", !withFixed);
+    $(row).classList.toggle("off", withFixed && !inc);
+    $(val).textContent = withFixed ? (inc ? "+" : "") + nis(amount) : "נדרש מספר ימים ›";
+    $(val).onclick = withFixed ? null : () => { if($("settings").classList.contains("hidden")) toggleSettings(); $("m-days").focus(); };
+  };
+  dailyRow("rr-fixed","r-fixed",incF,fEx+fVat); dailyRow("rr-cap","r-cap",incC,cEx+cVat);
+  $("s-energy").textContent=nis(energyInc); $("s-total").textContent=nis(tot);
+  /* שורת ההגדרות המקוצרת */
+  const ph = $("phases").value==="1" ? "חד־פאזי" : "תלת־פאזי";
+  const when = per.kind==="derived" || per.kind==="range" ? `תקופה ${heb(iso(from))}–${heb(iso(to))} (${days} ימים)`
+             : `תעריף לפי ${heb(iso(from))}` + (mref && per.mdays ? ` · ${per.mdays} ימים` : "");
+  $("set-sum").innerHTML = `${when} · ${ph} ${$("amps").value}A · ${discPct ? `הנחה ${discPct}%` : "בלי הנחה"}`;
+
+  let html=`<table class="bill"><tr><th>רכיב והנוסחה</th><th>לפני מע״מ</th><th>מע״מ</th><th>כולל</th></tr>${eRows.join("")}`;
+  if(segs.length>1) html += line("סה״כ רכיב צריכה", `סכום ${segs.length} הקטעים שנוצרו משינויי תעריף/מע״מ`, eEx, eVat, "sub");
+  if(discPct>0){
+    html += line(`הנחת ספק ${discPct}%`,
+      `על הצריכה <b>לפני מע״מ</b>: <code>${nis(eEx)} × ${discPct}%</code> = ${nis(dEx)}<br>ומקטינה את המע״מ ב‑${nis(dVat)}`,
+      -dEx,-dVat,"disc");
+    html += line("צריכה לאחר הנחה", `<code>${nis(eEx)} − ${nis(dEx)}</code>`, eEx-dEx, eVat-dVat, "sub");
+  }
+  if(uF) html += line("תשלום קבוע", `סכום חודשי לפני מע״מ, מומר ליומי:<br>${fNotes.join("<br><br>")}`, fEx, fVat);
+  if(uC) html += line("תשלום קיבולת", `לפי ${kva.toFixed(2)} KVA, תעריף שנתי מומר ליומי:<br>${cNotes.join("<br><br>")}`, cEx, cVat);
+  const vrs=[...new Set(segs.map(s=>pct(s.picks.vat.value)))];
+  html += line("סכום ביניים","סכום כל הרכיבים",totEx,totVat,"sub");
+  html += `<tr class="vatline"><td><div class="comp">סך המע״מ</div><div class="formula">${
+    vrs.length>1?`התקופה חוצה שינוי מע״מ (${vrs.join(" ← ")}) – חושב בנפרד לכל קטע`
+               :`${vrs[0]} על כל הרכיבים`}</div></td>
+    <td class="n">–</td><td class="n v">${nis(totVat)}</td><td class="n">–</td></tr>`;
+  html += `<tr class="grand"><td>סה״כ לתשלום</td><td class="n">${nis(totEx)}</td><td class="n">${nis(totVat)}</td><td class="n">${nis(tot)}</td></tr></table>`;
+  $("breakdown").innerHTML=html;
+
+  $("snapshot").innerHTML = `<table class="reg"><tr><th>רכיב</th><th>עלות</th><th>מתאריך</th></tr>` +
+    COMPONENTS.map(c=>{ const e=valueAt(c.key,from);
+      return `<tr class="${e.estimated?"est":""}"><td>${c.name}</td><td class="c">${fmtVal(c.key,e.value)}
+        ${e.estimated?'<span class="tag est">משוער</span>':''}</td><td class="d">${heb(e.from)}</td></tr>`; }).join("")
+    + `</table>`;
+}
+
+/* =========================================================================
+   8. ניווט ועלייה
+   ========================================================================= */
+function showView(v){
+  $("view-calc").classList.toggle("hidden",v!=="calc");
+  $("view-hist").classList.toggle("hidden",v!=="hist");
+  $("view-train").classList.toggle("hidden",v!=="train");
+  $("nav-calc").classList.toggle("on",v==="calc");
+  $("nav-hist").classList.toggle("on",v==="hist");
+  $("nav-train").classList.toggle("on",v==="train");
+  $("sticky").style.display = v==="calc" ? "" : "none";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
+(function init(){
+  $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
+  $("meter-curr-block").innerHTML=meterBlockHTML("curr","קריאה נוכחית");
+  const today=new Date(), back=new Date(today.getTime()-60*DAY);
+  $("d-from").value=load("from",iso(back));
+  $("d-to").value=load("to",iso(today));
+  $("d-ref").value=iso(today);
+  $("train-block").innerHTML=trainBlockHTML();
+  const st=load("set",null);
+  if(st){ $("inc-f").checked = st.incF ?? st.fixed ?? true; $("inc-c").checked = st.incC ?? st.fixed ?? true;
+          $("phases").value=st.phases; $("amps").value=st.amps; $("discount").value=st.disc; }
+  setMode(load("mode","kwh"));
+  /* הפס בתחתית הטלפון מופיע רק כשכרטיס התוצאה מחוץ למסך */
+  if("IntersectionObserver" in window)
+    new IntersectionObserver(es => $("sticky").classList.toggle("show", !es[0].isIntersecting), {threshold:0.15}).observe($("res-card"));
+  /* תאריכי הקריאות נשארים ריקים: הם נמלאים מהצילום או ידנית, ולא מומצאים */
+  $("proxy-url").value=load("proxy","");
+  ["d-from","d-to"].forEach(id=>$(id).addEventListener("change",()=>{ save(id==="d-from"?"from":"to",$(id).value); recalc(); }));
+  $("d-ref").addEventListener("change",recalc);
+  $("add-comp").innerHTML=COMPONENTS.map(c=>`<option value="${c.key}">${c.name}</option>`).join("");
+  $("add-comp").onchange=()=>{ const c=COMP[$("add-comp").value]; $("add-unit").textContent=`יחידה: ${c.unit} · ${c.role}`; };
+  $("add-comp").onchange();
+  $("add-from").value=iso(today);
+  $("sources").innerHTML=SOURCES.map(([n,u])=>`• ${n}<br><a href="${u}" target="_blank" rel="noopener">${u}</a>`).join("<br>");
+  checkEnv();
+  DM.status();
+  refreshAll();
+  Sync.runAll(false);
+})();
+function saveProxy(){ save("proxy",$("proxy-url").value.trim()); Sync.runAll(true); }
+</script>
+<script>
+/* התקנה כאפליקציה (PWA): רושם את ה‑service worker רק כשהדף רץ מכתובת https */
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost"))
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+</script>
+</body>
+</html>
