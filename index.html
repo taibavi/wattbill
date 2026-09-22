@@ -18,10 +18,21 @@
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding:8px 10px;
           background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(15,35,60,.06);position:sticky;top:0;z-index:6}
   .topbar b{font-size:15px;white-space:nowrap}
-  .topbar .nav{display:flex;gap:5px;margin:0;position:static;background:none;padding:0}
-  .topbar .nav button{flex:none;padding:6px 9px;font-size:11.5px}
-  @media(max-width:480px){ .topbar{padding:6px 7px} .topbar b{font-size:13px} .topbar .nav{gap:3px}
-    .topbar .nav button{padding:6px 6px;font-size:11px} .topbar .nm{display:none} }
+  .topbar{justify-content:flex-start}
+  .topbar .hb{background:none;border:none;font-size:22px;line-height:1;padding:4px 6px;cursor:pointer;color:var(--brand-d);border-radius:8px}
+  .topbar .hb:hover{background:#f1f5f9}
+  .topbar .vt{margin-inline-start:auto;font-size:12px;color:var(--muted);font-weight:700}
+  .menu{position:fixed;inset:0;z-index:25;background:rgba(15,23,42,.45)}
+  .drawer{position:absolute;top:0;bottom:0;right:0;width:min(290px,82vw);background:#fff;padding:12px;
+          box-shadow:-4px 0 18px rgba(0,0,0,.15);display:flex;flex-direction:column;gap:6px;overflow:auto}
+  .drawer-h{display:flex;justify-content:space-between;align-items:center;padding:2px 2px 10px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .drawer-h button{background:#f1f5f9;border:none;border-radius:8px;padding:5px 10px;cursor:pointer}
+  .drawer>button{display:flex;gap:10px;align-items:flex-start;text-align:right;background:#fff;border:1px solid var(--line);
+                 border-radius:10px;padding:10px;cursor:pointer;color:var(--ink)}
+  .drawer>button .i{font-size:20px}
+  .drawer>button b{display:block;font-size:13.5px}
+  .drawer>button small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+  .drawer>button.on{border-color:var(--brand);background:#f0fdfa}
   @media(max-width:480px){ .kwh-hero{padding:6px;margin-top:8px} .kwh-hero .n{font-size:22px} }
   /* מסך החישוב: במחשב שני טורים (קלט | תוצאה), בטלפון זה מתחת לזה */
   html,body{overflow-x:hidden}
@@ -242,12 +253,19 @@
 <div class="wrap">
 
   <div class="topbar">
-    <b>⚡<span class="nm"> WattBill IL</span></b>
-    <div class="nav">
-      <button id="nav-calc" class="on" onclick="showView('calc')">🧮 חישוב</button>
-      <button id="nav-hist" onclick="showView('hist')">📋 תעריפים</button>
-      <button id="nav-train" onclick="showView('train')">🔢 לימוד מונה</button>
-    </div>
+    <button class="hb" onclick="toggleMenu()" aria-label="תפריט" aria-expanded="false" id="hb-btn">☰</button>
+    <b>⚡ WattBill IL</b>
+    <span class="vt" id="view-title">חישוב</span>
+  </div>
+
+  <!-- תפריט צדדי: המסכים המשניים, שנכנסים אליהם לעיתים רחוקות -->
+  <div class="menu hidden" id="menu" onclick="if(event.target===this) toggleMenu()">
+    <nav class="drawer">
+      <div class="drawer-h"><b>⚡ WattBill IL</b><button onclick="toggleMenu()" aria-label="סגור">✕</button></div>
+      <button id="nav-calc" class="on" onclick="showView('calc')"><span class="i">🧮</span><span><b>חישוב</b><small>חשבון לפי קוט״ש או קריאות מונה</small></span></button>
+      <button id="nav-hist" onclick="showView('hist')"><span class="i">📋</span><span><b>טבלת תעריפים</b><small>רכיבי העלות לאורך זמן, והוספת ערכים</small></span></button>
+      <button id="nav-train" onclick="showView('train')"><span class="i">🔢</span><span><b>לימוד מונה</b><small>רק אם הזיהוי מתמונה שוגה במונה שלך</small></span></button>
+    </nav>
   </div>
 
   <!-- מצלמה חיה: שכבה על כל המסך, משותפת לחישוב וללימוד -->
@@ -1663,9 +1681,17 @@ function showView(v){
   $("nav-calc").classList.toggle("on",v==="calc");
   $("nav-hist").classList.toggle("on",v==="hist");
   $("nav-train").classList.toggle("on",v==="train");
+  $("view-title").textContent = { calc:"חישוב", hist:"טבלת תעריפים", train:"לימוד מונה" }[v];
+  if(!$("menu").classList.contains("hidden")) toggleMenu();
   $("sticky").style.display = v==="calc" ? "" : "none";
   window.scrollTo({top:0,behavior:"smooth"});
 }
+function toggleMenu(){
+  const open = $("menu").classList.toggle("hidden") === false;
+  $("hb-btn").setAttribute("aria-expanded", open);
+  document.body.style.overflow = open ? "hidden" : "";
+}
+document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("menu").classList.contains("hidden")) toggleMenu(); });
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
