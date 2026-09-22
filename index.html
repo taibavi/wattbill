@@ -60,6 +60,10 @@
   .setline{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:11px;padding:9px 10px;
            border:1px dashed #cbd5e1;border-radius:10px;font-size:11.5px;color:var(--muted);cursor:pointer;background:#fbfdfe}
   .setline b{color:var(--brand);white-space:nowrap}
+  .setlbl{font-size:11px;font-weight:800;color:var(--muted);margin:12px 2px 4px}
+  .setlbl+.setline{margin-top:0}
+  .rows .disc-in{width:58px!important;padding:3px 5px!important;font-size:13px!important;text-align:center;direction:ltr;margin:0 2px}
+  .rows .sub-k{font-size:10.5px;color:var(--muted)}
   #settings{margin-top:9px;border-top:1px solid var(--line);padding-top:9px}
   #settings h4{font-size:12px;margin:4px 0 6px;color:var(--brand-d)}
   .rows{margin-top:8px;border-top:1px solid var(--line)}
@@ -317,6 +321,7 @@
 
     <div class="kwh-hero" id="kwh-hero"><div class="n">0.0</div><div class="l">קוט״ש לחישוב</div></div>
 
+    <div class="setlbl">⚙️ נתונים שמשפיעים על החישוב</div>
     <div class="setline" onclick="toggleSettings()"><span id="set-sum">–</span><b id="set-btn">שנה ›</b></div>
 
     <div id="settings" class="hidden">
@@ -353,15 +358,13 @@
       <div id="dt-derived" class="hidden"><div class="note" id="derived-note" style="margin:0">–</div></div>
       <div class="hint" id="days-note" style="margin-top:6px">–</div>
 
-      <h4 style="margin-top:12px">חיבור והנחות</h4>
+      <h4 style="margin-top:12px">חיבור</h4>
       <div class="row" id="conn-block">
         <div class="fld"><label for="phases">חיבור</label>
           <select id="phases" onchange="saveSettings();recalc()"><option value="1">חד־פאזי</option><option value="3">תלת־פאזי</option></select></div>
         <div class="fld"><label for="amps">אמפר</label>
           <select id="amps" onchange="saveSettings();recalc()">
             <option>25</option><option selected>40</option><option>63</option><option>80</option><option>100</option></select></div>
-        <div class="fld"><label for="discount">הנחת ספק %</label>
-          <input type="number" id="discount" value="0" min="0" max="40" step="0.5" oninput="saveSettings();recalc()"></div>
       </div>
       <div class="hint" id="kva-note" style="margin:0">–</div>
       <details style="margin-top:8px">
@@ -381,7 +384,11 @@
       <div class="sm" id="total-sub">–</div>
     </div>
     <div class="rows">
-      <div class="hl"><span>עלות הצריכה בלבד</span><span class="v" id="r-energy">–</span></div>
+      <div class="hl"><span>עלות הצריכה</span><span class="v" id="r-energy">–</span></div>
+      <div id="rr-disc"><label class="tg"><input type="checkbox" id="inc-d" onchange="saveSettings();recalc()">הנחת ספק
+          <input type="number" id="discount" class="disc-in" value="7" min="0" max="40" step="0.5" inputmode="decimal"
+                 onclick="event.stopPropagation()" oninput="$('inc-d').checked=true;saveSettings();recalc()">%
+          <span class="sub-k">על הצריכה בלבד</span></label><span class="v" id="r-disc">–</span></div>
       <div id="rr-fixed"><label class="tg"><input type="checkbox" id="inc-f" checked onchange="saveSettings();recalc()">תשלום קבוע</label><span class="v" id="r-fixed">–</span></div>
       <div id="rr-cap"><label class="tg"><input type="checkbox" id="inc-c" checked onchange="saveSettings();recalc()">תשלום קיבולת</label><span class="v" id="r-cap">–</span></div>
       <div><span class="k">מתוך הסה״כ: מע״מ</span><span class="v" id="t-vat">–</span></div>
@@ -853,7 +860,7 @@ function toggleSettings(){
   $("set-btn").textContent = open ? "סגור ˄" : "שנה ›";
 }
 function saveSettings(){
-  save("set", { incF:$("inc-f").checked, incC:$("inc-c").checked, phases:$("phases").value, amps:$("amps").value, disc:$("discount").value });
+  save("set", { incF:$("inc-f").checked, incC:$("inc-c").checked, incD:$("inc-d").checked, phases:$("phases").value, amps:$("amps").value, disc:$("discount").value });
 }
 
 /* לשונית הלימוד: אותה סריקה, אבל במקום "אשר" – הקלדת הקריאה הנכונה ו"למד" */
@@ -1584,7 +1591,7 @@ function recalc(){
      נכללים בסה״כ רק אם מסומנים */
   const incF=$("inc-f").checked, incC=$("inc-c").checked, fixedWanted = incF || incC;
   const canDaily = !(mref && !per.mdays), fixedNoDays = fixedWanted && !canDaily;
-  const withFixed=canDaily, kva=kvaOf(), discPct=Math.max(0,parseFloat($("discount").value)||0);
+  const withFixed=canDaily, kva=kvaOf(), discVal=Math.max(0,parseFloat($("discount").value)||0), incD=$("inc-d").checked, discPct = incD ? discVal : 0;
   let eEx=0,eVat=0,dEx=0,dVat=0,fEx=0,fVat=0,cEx=0,cVat=0;
   const eRows=[],fNotes=[],cNotes=[],estHits=new Set();
 
@@ -1629,7 +1636,11 @@ function recalc(){
   $("t-ex").textContent=nis(totEx); $("t-vat").textContent=nis(totVat); $("t-inc").textContent=nis(tot);
   /* סיכום מהיר: עלות הצריכה לבד מול הכל, כולל מע״מ */
   const energyInc=(eEx-dEx)+(eVat-dVat);
-  $("r-energy").textContent=nis(energyInc);
+  $("r-energy").textContent=nis(eEx+eVat);
+  /* ההנחה חלה על הצריכה לפני מע״מ, ולכן מקטינה גם את המע״מ עליה – כמות החיסכון = הצריכה כולל מע״מ × אחוז */
+  const discSave=(eEx+eVat)*discVal/100;
+  $("rr-disc").classList.toggle("off", !incD || !discVal);
+  $("r-disc").textContent = discVal ? (incD ? "−" : "") + nis(discSave) : "–";
   /* בלי מספר ימים אי אפשר לחשב – השורה מזמינה להזין ימים */
   const dailyRow = (row, val, inc, amount) => {
     $(row).classList.toggle("na", !withFixed);
@@ -1643,7 +1654,7 @@ function recalc(){
   const ph = $("phases").value==="1" ? "חד־פאזי" : "תלת־פאזי";
   const when = per.kind==="derived" || per.kind==="range" ? `תקופה ${heb(iso(from))}–${heb(iso(to))} (${days} ימים)`
              : `תעריף לפי ${heb(iso(from))}` + (mref && per.mdays ? ` · ${per.mdays} ימים` : "");
-  $("set-sum").innerHTML = `${when} · ${ph} ${$("amps").value}A · ${discPct ? `הנחה ${discPct}%` : "בלי הנחה"}`;
+  $("set-sum").innerHTML = `${when} · ${ph} ${$("amps").value}A`;
 
   let html=`<table class="bill"><tr><th>רכיב והנוסחה</th><th>לפני מע״מ</th><th>מע״מ</th><th>כולל</th></tr>${eRows.join("")}`;
   if(segs.length>1) html += line("סה״כ רכיב צריכה", `סכום ${segs.length} הקטעים שנוצרו משינויי תעריף/מע״מ`, eEx, eVat, "sub");
@@ -1703,7 +1714,8 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   $("train-block").innerHTML=trainBlockHTML();
   const st=load("set",null);
   if(st){ $("inc-f").checked = st.incF ?? st.fixed ?? true; $("inc-c").checked = st.incC ?? st.fixed ?? true;
-          $("phases").value=st.phases; $("amps").value=st.amps; $("discount").value=st.disc; }
+          $("phases").value=st.phases; $("amps").value=st.amps; $("discount").value=st.disc;
+          $("inc-d").checked = st.incD ?? (parseFloat(st.disc) > 0); }
   setMode(load("mode","kwh"));
   /* הפס בתחתית הטלפון מופיע רק כשכרטיס התוצאה מחוץ למסך */
   if("IntersectionObserver" in window)
