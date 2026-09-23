@@ -606,6 +606,8 @@ const COMPONENTS = [
   { key:"energy",   name:"תעריף צריכה",   unit:"₪ לקוט״ש, לפני מע״מ", fmt:"ag",  role:"המחיר לכל קילוואט־שעה" },
   { key:"fixedA",   name:"תשלום קבוע א׳ (חלוקה)", unit:"₪ לחודש, לפני מע״מ",      fmt:"nis", role:"רכיב קבוע חודשי, מחושב יומית" },
   { key:"fixedB",   name:"תשלום קבוע ב׳ (אספקה)", unit:"₪ לחודש, לפני מע״מ",      fmt:"nis", role:"רכיב קבוע נוסף, מחושב יומית" },
+  { key:"fixedA3",  name:"תשלום קבוע א׳ – תלת־פאזי", unit:"₪ לחודש, לפני מע״מ",  fmt:"nis", role:"שירותי צרכנות חלוקה, מונה תלת־פאזי" },
+  { key:"fixedB3",  name:"תשלום קבוע ב׳ – תלת־פאזי", unit:"₪ לחודש, לפני מע״מ",  fmt:"nis", role:"שירותי צרכנות אספקה, מונה תלת־פאזי" },
   { key:"capacity", name:"תשלום קיבולת",  unit:"₪ לכל KVA לשנה, לפני מע״מ",  fmt:"nis", role:"לפי גודל החיבור, מחושב יומית" },
   { key:"vat",      name:"שיעור מע״מ",    unit:"%",               fmt:"pct", role:"נקבע בחקיקה, ציר זמן נפרד" }
 ];
@@ -615,6 +617,7 @@ const GOV_2026 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files
 const GOV_2025 = "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf";
 const PROTO_SRC = "https://protocol.co.il/electricity-price/";
 const KAMA_SRC  = "https://www.kamaze.co.il/reviews/15054/electrical-power/electricity-prices";
+const BOOK_0726 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf";
 const RSHUT_2026 = "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf";
 const ANNEX_0726 = "https://www.bezeq.co.il/media/PDF/energy/tarifim.pdf";
 const VAT_SRC  = "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf";
@@ -629,24 +632,39 @@ const BUILTIN = {
     { id:"e26a", from:"2026-01-01", to:"2026-06-30", value:0.5451, verified:true, estimated:false,
       note:"עדכון 01/2026, עלייה של כ‑1.5%.", src:GOV_2026 },
     { id:"e26b", from:"2026-07-01", to:null, value:0.5383, verified:true, estimated:false,
-      note:"עדכון 01/07/2026: 53.83 אג׳ לקוט״ש, מצוין במפורש כלפני מע״מ.", src:ANNEX_0726 }
+      note:"ספר התעריפים 07/2026, לוח 5.3-1: רכיב משתנה לצרכן ביתי 53.83 אג׳ (יצור 31.12 + מערכתי 9.29 + רשת 13.42).", src:BOOK_0726 }
   ],
   fixedA:[
     { id:"fa_old", from:"2024-01-01", to:"2025-12-31", value:9.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
     { id:"fa26", from:"2026-01-01", to:"2026-06-30", value:9.87, verified:true, estimated:false,
       note:"לוח 5.4 בהחלטת רשות החשמל לתעריפי 1.1.2026, מונה חד־פאזי. לפני מע״מ (11.65 ₪ כולל מע״מ).", src:RSHUT_2026 },
-    { id:"fa26b", from:"2026-07-01", to:null, value:15.60, verified:true, estimated:false,
-      note:"עדכון 01/07/2026, לפני מע״מ. חלוקת הסכום בין חלוקה לאספקה שונה בין המקורות, אך הסכום המשותף (25.57 ₪) זהה – והחישוב משתמש בסכום.",
-      src:ANNEX_0726 }
+    { id:"fa26b", from:"2026-07-01", to:null, value:9.97, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות חלוקה, מונה חד־פאזי, 9.97 ₪ לחודש לפני מע״מ.", src:BOOK_0726 }
   ],
   fixedB:[
     { id:"fb_old", from:"2024-01-01", to:"2025-12-31", value:14.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
     { id:"fb26", from:"2026-01-01", to:"2026-06-30", value:14.87, verified:true, estimated:false,
       note:"שירותי אספקה, לוח 5.4-1 בהחלטת רשות החשמל ל‑1.1.2026 (14.80 ₪ למונה תלת־פאזי). לפני מע״מ (17.55 ₪ כולל מע״מ).", src:RSHUT_2026 },
-    { id:"fb26b", from:"2026-07-01", to:null, value:9.97, verified:true, estimated:false,
-      note:"עדכון 01/07/2026, לפני מע״מ. יחד עם רכיב החלוקה: 25.57 ₪ לחודש לפני מע״מ.", src:ANNEX_0726 }
+    { id:"fb26b", from:"2026-07-01", to:null, value:15.60, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי, 15.60 ₪ לחודש לפני מע״מ. סה״כ קבוע חד־פאזי: 25.57 ₪.", src:BOOK_0726 }
+  ],
+  fixedA3:[
+    { id:"fa3_old", from:"2024-01-01", to:"2025-12-31", value:11.45, verified:false, estimated:true,
+      note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:RSHUT_2026 },
+    { id:"fa3_26", from:"2026-01-01", to:"2026-06-30", value:11.45, verified:true, estimated:false,
+      note:"החלטת רשות החשמל ל‑1.1.2026: מונה תלת־פאזי בגודל חיבור קטן מ‑3×100 אמפר.", src:RSHUT_2026 },
+    { id:"fa3_26b", from:"2026-07-01", to:null, value:11.56, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות חלוקה, מונה תלת־פאזי, 11.56 ₪ לחודש לפני מע״מ.", src:BOOK_0726 }
+  ],
+  fixedB3:[
+    { id:"fb3_old", from:"2024-01-01", to:"2025-12-31", value:14.80, verified:false, estimated:true,
+      note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:RSHUT_2026 },
+    { id:"fb3_26", from:"2026-01-01", to:"2026-06-30", value:14.80, verified:true, estimated:false,
+      note:"החלטת רשות החשמל ל‑1.1.2026, לוח 5.4-1: שירותי אספקה למונה תלת־פאזי.", src:RSHUT_2026 },
+    { id:"fb3_26b", from:"2026-07-01", to:null, value:15.53, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי. סה״כ קבוע תלת־פאזי: 27.09 ₪.", src:BOOK_0726 }
   ],
   capacity:[
     { id:"c_old", from:"2024-01-01", to:"2025-12-31", value:5.19, verified:false, estimated:true,
@@ -654,7 +672,7 @@ const BUILTIN = {
     { id:"c26", from:"2026-01-01", to:"2026-06-30", value:5.19, verified:true, estimated:false,
       note:"לוח 5.3-1 בהחלטת רשות החשמל ל‑1.1.2026, לפני מע״מ (6.12 ₪ כולל מע״מ).", src:RSHUT_2026 },
     { id:"c26b", from:"2026-07-01", to:null, value:6.18, verified:true, estimated:false,
-      note:"עדכון 01/07/2026: 6.18 ₪ לכל KVA לשנה, לפני מע״מ, מחולק לפי ימי לוח.", src:ANNEX_0726 }
+      note:"ספר התעריפים 07/2026, לוח 5.3-1: רכיב קבוע לצרכן ביתי, 6.18 ₪ לכל KVA לשנה לפני מע״מ.", src:BOOK_0726 }
   ],
   vat:[
     { id:"v17", from:"2015-10-01", to:"2024-12-31", value:0.17, verified:true, estimated:false,
@@ -669,6 +687,7 @@ const SOURCES = [
   ["רשות החשמל – ספר לוחות התעריפים 01/2026 (PDF רשמי)", GOV_2026],
   ["רשות החשמל – לוחות תעריפים 2025 (PDF רשמי)", GOV_2025],
   ["רשות החשמל – החלטה ולוחות תעריפים מ‑1.1.2026 (PDF רשמי)", RSHUT_2026],
+  ["רשות החשמל – ספר לוחות התעריפים 07/2026 (PDF רשמי)", BOOK_0726],
   ["נספח תעריפי חשמל מ‑01/07/2026, כולם לפני מע״מ", ANNEX_0726],
   ["חברת החשמל – תעריף החשמל הביתי","https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff"],
   ["מבנה החשבון ודוגמת חישוב (כולל פירוט לפני ואחרי מע״מ)", PROTO_SRC],
@@ -1795,10 +1814,12 @@ function recalc(){
        <code>${share.toFixed(1)} × ${ag(p.energy.value)}</code> = ${nis(ex)} לפני מע״מ<br>
        מע״מ ${pct(vr)} → <code>${nis(ex)} × ${vr.toFixed(2)}</code> = ${nis(v)}`, ex, v));
     if(withFixed){
-      const a=p.fixedA.value,b=p.fixedB.value,cr=p.capacity.value;
+      /* התשלום הקבוע שונה בין מונה חד־פאזי לתלת־פאזי (לוח 5.4-1 בספר התעריפים) */
+      const three = $("phases").value === "3";
+      const a=(three?p.fixedA3:p.fixedA).value, b=(three?p.fixedB3:p.fixedB).value, cr=p.capacity.value;
       const fx=(a+b)*12/365*s.days, cx=cr*kva/365*s.days;
       fEx+=fx; fVat+=fx*vr; cEx+=cx; cVat+=cx*vr;
-      fNotes.push(`${s.days} ימים · א׳ ${nis(a)} + ב׳ ${nis(b)}${p.fixedA.estimated?' ⚠משוער':''}<br>
+      fNotes.push(`${s.days} ימים · ${three?"תלת־פאזי":"חד־פאזי"} · חלוקה ${nis(a)} + אספקה ${nis(b)}${p.fixedA.estimated?' ⚠משוער':''}<br>
         <code>(${a}+${b}) × 12 ÷ 365 × ${s.days}</code> = ${nis(fx)} + מע״מ ${nis(fx*vr)}`);
       cNotes.push(`${s.days} ימים · ${nis(cr)} לכל KVA${p.capacity.estimated?' ⚠משוער':''}<br>
         <code>${cr} × ${kva.toFixed(2)} ÷ 365 × ${s.days}</code> = ${nis(cx)} + מע״מ ${nis(cx*vr)}`);
