@@ -1,1 +1,57 @@
+# בדיקה שבועית של ספר לוחות התעריפים של רשות החשמל.
+# אם יצא עדכון – data/tariffs.json מתעדכן ונדחף אוטומטית, והאפליקציה
+# מקבלת אותו בפתיחה הבאה בלי שהמשתמש עושה דבר.
+# אם הפענוח נכשל או שהערכים לא הגיוניים – שום דבר לא משתנה, וההרצה נכשלת
+# כדי ש‑GitHub ישלח התראה במייל.
 
+name: עדכון תעריפים
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"        # כל יום שני, 04:17 UTC
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "כתובת ספר תעריפים מפורשת (לא חובה)"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: התקנת poppler (pdftotext)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+
+      - name: בדיקת התעריפים
+        id: fetch
+        run: |
+          python3 scripts/fetch_tariffs.py \
+            --data data/tariffs.json \
+            ${{ inputs.url && format('--url {0}', inputs.url) || '' }}
+
+      - name: דחיפת העדכון
+        if: steps.fetch.outputs.changed == 'true'
+        run: |
+          git config user.name  "wattbill-tariff-bot"
+          git config user.email "noreply@anthropic.com"
+          git add data/tariffs.json
+          git commit -m "עדכון תעריפים אוטומטי: ${{ steps.fetch.outputs.summary }}"
+          git push
+
+      - name: סיכום
+        if: always()
+        run: |
+          echo "### בדיקת תעריפים" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.fetch.outcome }}" != "success" ]; then
+            echo "❌ הבדיקה נכשלה – הנתונים **לא** שונו. ראה את הפלט של השלב הקודם." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.fetch.outputs.changed }}" = "true" ]; then
+            echo "✅ עודכן: ${{ steps.fetch.outputs.summary }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ אין שינוי בתעריפים." >> $GITHUB_STEP_SUMMARY
+          fi
