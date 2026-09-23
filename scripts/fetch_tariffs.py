@@ -582,7 +582,49 @@ def parse_free(text):
     return out, head
 
 
-PARSERS = [("שורות", parse_lines), ("רצף", parse_blob), ("חופשי", parse_free)]
+def alt_runs(rows, maxgap=60):
+    """פרוסות שבהן ערך השורה חוזר כל שתי שורות.
+
+    בלוח 5.4-1 שורות 9 ו‑10 (תשלום מראש) הן שכפול מדויק של שורות 7 ו‑8, ולכן
+    ארבע השורות יוצרות רצף מתחלף: חד, תלת, חד, תלת. זו חתימה מבנית חזקה שאינה
+    תלויה בטקסט התיאור כלל – וזה חשוב, כי בטבלת האספקה של ספר 07/2026 התיאור
+    של שורת החד־פאזי מפוזר על פני שבר עמוד ולא ניתן לאיתור.
+    שתי השורות האחרונות בפרוסה הן תמיד (חד־פאזי, תלת־פאזי)."""
+    out, n, a = [], len(rows), 0
+    while a < n:
+        e = a
+        while e + 1 < n:
+            nxt = e + 1
+            if nxt - a >= 2 and abs(rows[nxt][1] - rows[nxt - 2][1]) > 0.005:
+                break
+            if rows[nxt][0] - rows[e][0] > maxgap:
+                break
+            e = nxt
+        if e - a + 1 >= 4 and abs(rows[e][1] - rows[e - 1][1]) > 0.005:
+            out.append((rows[e - 1][1], rows[e][1]))
+            a = e + 1
+        else:
+            a += 1
+    return out
+
+
+def parse_struct(text):
+    """פענוח לפי מבנה בלבד: לוח 5.3-1 לפי הזוג השווה, ולוח 5.4-1 לפי שכפול
+    שורות התשלום מראש. לא נעשה כאן שום ניסיון לקרוא את תיאורי השורות."""
+    lines = [l.strip() for l in strip_bidi(text).split("\n")]
+    out, head = extract_53(lines)
+    runs = alt_runs(line_rows(lines))
+    if len(runs) < 2:
+        raise Bad("נמצאו רק %d טבלאות עם שורות תשלום מראש בלוח 5.4-1 (דרושות שתיים)." % len(runs))
+    (a1, a3), (b1, b3) = runs[0], runs[1]
+    if abs(a1 - b1) < 1e-9 and abs(a3 - b3) < 1e-9:
+        raise Bad("טבלאות החלוקה והאספקה יצאו זהות.")
+    out.update({"fixedA": a1, "fixedA3": a3, "fixedB": b1, "fixedB3": b3})
+    return out, head
+
+
+PARSERS = [("שורות", parse_lines), ("רצף", parse_blob),
+           ("חופשי", parse_free), ("מבנה", parse_struct)]
 
 
 def extract_all(texts):
