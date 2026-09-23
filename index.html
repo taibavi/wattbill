@@ -180,9 +180,15 @@
   .tag{display:inline-block;font-size:9px;font-weight:800;padding:1px 5px;border-radius:99px;margin-right:3px}
   .tag.now{background:#dcfce7;color:#166534}
   .tag.est{background:#f3e8ff;color:var(--est)}
+  .tag.auto{background:#dcfce7;color:#166534}
   .tag.man{background:#fef3c7;color:#92400e}
   .regnote{font-size:10.5px;color:var(--muted);line-height:1.5;padding:2px 4px 8px;border-bottom:1px solid var(--line)}
 
+  .updbar{position:fixed;top:0;left:0;right:0;z-index:60;background:var(--brand);color:#fff;
+    font-size:12.5px;font-weight:700;padding:8px 12px;display:flex;align-items:center;gap:10px;
+    justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+  .updbar button{background:#fff;color:var(--brand2);border:0;border-radius:7px;padding:4px 11px;
+    font-size:12.5px;font-weight:800;cursor:pointer}
   .pill{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px}
   .pill.local{background:#fef3c7;color:#92400e}
   .pill.live{background:#dcfce7;color:#166534}
@@ -431,6 +437,10 @@
   </div>
   </div>
 
+  <div id="upd-bar" class="hidden updbar">גרסה חדשה של האפליקציה מוכנה.
+    <button onclick="location.reload()">רענן</button>
+    <span onclick="this.parentNode.classList.add('hidden')" style="cursor:pointer;opacity:.7">✕</span></div>
+
   <div class="sticky" id="sticky">
     <div>צריכה בלבד<b id="s-energy">–</b></div>
     <div>סה״כ כולל הכל<b id="s-total">–</b></div>
@@ -508,6 +518,9 @@
       <li><b>התעריפים תקפים מ‑1 בינואר 2023 ואילך.</b> כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל
           (לוחות 5.3-1 ו‑5.4-1) ומול שיעור המע״מ שפרסמה רשות המסים. לתאריכים שלפני 2023 אין באפליקציה נתונים,
           וחישוב כזה יוצג עם אזהרה.</li>
+      <li><b>העדכון אוטומטי.</b> אחת לשבוע נבדק ספר לוחות התעריפים העדכני של רשות החשמל, והערכים
+          שהשתנו נכנסים לאפליקציה לבד. אם הפענוח אינו חד־משמעי, הנתון הישן נשאר במקומו ולא מוחלף
+          בניחוש – עדיף ערך ישן ונכון מערך חדש ושגוי.</li>
       <li><b>ערכים המסומנים כ"משוערים"</b> בטבלת התעריפים אינם ערכים מאומתים לאותו תאריך.</li>
     </ul>
   </div>
@@ -516,6 +529,8 @@
     <div class="ab-t">פרטיות</div>
     <ul class="ab-l">
       <li><b>אין שרת ואין הרשמה.</b> התמונות של המונה לא נשלחות לשום מקום, והפענוח נעשה במכשיר עצמו.</li>
+      <li><b>הבקשה היחידה לרשת</b> היא משיכת קובץ התעריפים מאותה כתובת שממנה נטענה האפליקציה.
+          לא נשלח בה שום מידע עליך, והיא לא נדרשת כדי שהאפליקציה תעבוד.</li>
       <li><b>מה כן נשמר במכשיר:</b> ההגדרות שלך, הספרות שנלמדו מהמונה, ושורות שהוספת או שסונכרנו לטבלת רכיבי העלות.
           זה נשמר באחסון המקומי של הדפדפן ולא יוצא ממנו.</li>
       <li><b>מה לא נשמר:</b> התמונות עצמן והקריאות שחושבו. האפליקציה לא מנהלת היסטוריה, וכל חישוב מתחיל מחדש.</li>
@@ -544,7 +559,9 @@
   <div class="card">
     <div class="note" style="margin-bottom:8px;font-size:12px">📅 <b>תוקף הנתונים: מ‑1 בינואר 2023 ואילך.</b>
       כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל (לוחות 5.3-1 ו‑5.4-1) ומול פרסום רשות המסים למע״מ.
-      לתאריכים שלפני 2023 אין כאן נתונים, וחישוב לתאריך כזה יוצג עם אזהרה.</div>
+      לתאריכים שלפני 2023 אין כאן נתונים, וחישוב לתאריך כזה יוצג עם אזהרה.
+      <br>🔄 <b>הטבלה מתעדכנת מעצמה.</b> אחת לשבוע נבדק ספר התעריפים העדכני, ואם יצא עדכון הוא נכנס
+      לאפליקציה לבד. שורה שהתקבלה כך מסומנת «עודכן אוטומטית».</div>
     <div class="hint" style="margin-bottom:8px">כל רכיב מנוהל כציר זמן. שורה ירוקה = בתוקף היום. שורה סגולה = ערך משוער שלא אומת לתקופה ההיא.</div>
     <div style="overflow-x:auto"><table class="reg" id="reg-table"></table></div>
   </div>
@@ -571,19 +588,11 @@
   <div class="card">
     <details>
       <summary>🔍 בדיקת תקינות וסנכרון</summary>
+      <div class="hint" style="margin:8px 0">התעריפים מתעדכנים מעצמם. אחת לשבוע נבדק ספר לוחות
+        התעריפים של רשות החשמל, ואם יצא עדכון הוא נכנס לאפליקציה בפתיחה הבאה – בלי שתצטרך לעשות דבר.
+        הכפתור כאן נועד רק לבדיקה מיידית.</div>
       <div id="audit-box" class="audit ok" style="margin-top:8px">בודק…</div>
-      <div class="row">
-        <button class="btn-ghost" onclick="Sync.runAll(true)">🔄 סנכרן מחדש</button>
-        <button class="btn-ghost" onclick="toggle('src-panel')">⚙️ Proxy</button>
-      </div>
-      <div id="src-panel" class="hidden" style="margin-top:9px">
-        <div class="fld">
-          <label for="proxy-url">כתובת Proxy / Endpoint</label>
-          <input type="text" id="proxy-url" dir="ltr" placeholder="https://your-worker.dev/t?url={url}">
-          <div class="hint">דפדפן חוסם משיכה ישירה מ‑gov.il / iec.co.il (CORS). <code>{url}</code> יוחלף בכתובת המקור.</div>
-        </div>
-        <button class="btn-ghost" onclick="saveProxy()">שמור והרץ</button>
-      </div>
+      <button class="btn-ghost" style="width:100%" onclick="Sync.runAll()">🔄 בדוק עכשיו</button>
       <div class="log" id="sync-log"></div>
     </details>
   </div>
@@ -693,8 +702,8 @@ const BUILTIN = {
   fixedB3:[
     { id:"fb3_23", from:"2023-01-01", to:"2024-01-31", value:11.42, verified:true, estimated:false,
       note:"ספרי התעריפים של 2023, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי, 11.42 ₪ לחודש לפני מע״מ (1.70+4.87+4.85). סה״כ קבוע תלת־פאזי ב‑2023: 20.96 ₪.", src:BOOK_0723 },
-    { id:"fb3_24", from:"2024-02-01", to:"2024-12-31", value:12.26, verified:true, estimated:false,
-      note:"ספר התעריפים 07/2024, לוח 5.4-1: אספקה, מונה תלת־פאזי.", src:BOOK_2024 },
+    { id:"fb3_24", from:"2024-02-01", to:"2024-12-31", value:12.28, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2024, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי, 12.28 ₪ לחודש לפני מע״מ (1.83+5.24+5.21).", src:BOOK_2024 },
     { id:"fb3_25", from:"2025-01-01", to:"2025-12-31", value:13.31, verified:true, estimated:false,
       note:"נספח ב׳ להחלטה 70004, לוח 5.4-1: אספקה, מונה תלת־פאזי, 13.31 ₪ לחודש.", src:GOV_2025 },
     { id:"fb3_26", from:"2026-01-01", to:"2026-06-30", value:14.80, verified:true, estimated:false,
@@ -741,10 +750,6 @@ const SOURCES = [
   ["תעריף חשמל ביתי – פירוט רכיבים לפני ואחרי מע״מ", KAMA_SRC],
   ["עדכון 01/07/2026 – 63.52 אג׳","https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/"]
 ];
-const SCRAPE_TARGETS = [
-  { name:"חברת החשמל – תעריף ביתי", url:"https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff" },
-  { name:"רשות החשמל – ספר תעריפים", url:"https://www.gov.il/he/pages/tariffbook" }
-];
 
 /* =========================================================================
    2. עזרים
@@ -765,8 +770,14 @@ function drop(k){ try{ localStorage.removeItem("wb_"+k); }catch(e){} }
 
 let ADOPTED = load("adopted", []);
 
+/* REMOTE = טבלת התעריפים שנמשכה מ‑data/tariffs.json ונשמרה במכשיר.
+   כל עוד לא נמשכה בהצלחה אף פעם, עובדים עם הטבלה המוטמעת בקוד. */
+let REMOTE = load("remote", null);
+const baseRows = key => (REMOTE && REMOTE.components && REMOTE.components[key]) || BUILTIN[key];
+const dataFrom = () => (REMOTE && REMOTE.dataFrom) || DATA_FROM;
+
 function timeline(key){
-  const rows = BUILTIN[key].map(r=>Object.assign({},r,{comp:key,origin:"builtin"}))
+  const rows = baseRows(key).map(r=>Object.assign({},r,{comp:key,origin:r.auto?"auto":"builtin"}))
     .concat(ADOPTED.filter(a=>a.comp===key).map(r=>Object.assign({},r)));
   rows.sort((a,b)=> D(a.from)-D(b.from));
   for(let i=0;i<rows.length-1;i++){
@@ -837,64 +848,70 @@ function renderAudit(){
 /* =========================================================================
    4. סנכרון
    ========================================================================= */
+/* הסנכרון עצמו לא רץ כאן. דפדפן לא יכול למשוך מ‑gov.il (אין CORS), ולכן
+   הבדיקה מול ספר התעריפים רצה אחת לשבוע ב‑GitHub Actions ומעדכנת את
+   data/tariffs.json שלצד האפליקציה. כאן רק מושכים את הקובץ הזה – אותו מקור,
+   בלי CORS – ושומרים עותק מקומי כדי שהאפליקציה תעבוד גם בלי רשת. */
+const DATA_URL = "./data/tariffs.json";
+
+function validData(d){
+  if(!d || d.app!=="wattbill-tariffs" || !d.components) return "מבנה קובץ לא מוכר";
+  for(const c of COMPONENTS){
+    const rows=d.components[c.key];
+    if(!Array.isArray(rows) || !rows.length) return `חסר רכיב «${c.name}»`;
+    for(const r of rows){
+      if(typeof r.value!=="number" || !isFinite(r.value)) return `ערך לא מספרי ב«${c.name}»`;
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(r.from||"")) return `תאריך לא תקין ב«${c.name}»`;
+    }
+  }
+  return null;
+}
+
 const Sync = {
   lines:[],
-  say(m){ this.lines.push(m); const l=$("sync-log"); l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; },
+  say(m){ this.lines.push(m); const l=$("sync-log"); if(l){ l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; } },
   pill(c,t){ const p=$("sync-pill"); p.className="pill "+c; p.textContent=t; },
-  buildUrl(t){ const p=($("proxy-url").value||"").trim(); if(!p) return null;
-    return p.includes("{url}")?p.replace("{url}",encodeURIComponent(t.url)):p.replace(/\/+$/,"")+"/"+t.url; },
-  parse(text){
-    const c=[],pats=[/([0-9]{2}\.[0-9]{1,2})\s*(?:אג|אגורות)/g,
-      /"?(?:tariff|rate|kwh[_-]?price)"?\s*[:=]\s*"?(0\.[0-9]{3,4})"?/gi,/([0-9]{2}\.[0-9]{1,2})\s*agorot/gi];
-    for(const p of pats){ let m; while((m=p.exec(text))!==null){ let v=parseFloat(m[1]); if(v>5) v/=100; if(v>=0.30&&v<=1.50) c.push(v); } }
-    if(!c.length) return null;
-    const f={}; c.forEach(v=>f[v]=(f[v]||0)+1);
-    return Number(Object.keys(f).sort((a,b)=>f[b]-f[a])[0]);
+  stamp(){
+    if(!REMOTE) return "טבלה מוטמעת";
+    const at=load("remoteAt",null);
+    return "תעריפים מעודכנים ל‑"+heb(REMOTE.updated||"")+(at?" · נבדק "+heb(at):"");
   },
-  async runAll(){
-    this.lines=[];
-    this.say("── בדיקה "+new Date().toLocaleString("he-IL")+" ──");
-    const a=renderAudit();
-    this.say(`${a.total} שורות · בעיות: ${a.problems.length} · אזהרות: ${a.warnings.length}`);
-    a.problems.forEach(p=>this.say("  ✗ "+p));
-    a.warnings.forEach(w=>this.say("  ⚠ "+w));
-    const proxy=($("proxy-url").value||"").trim();
-    if(!proxy){
-      this.pill(a.problems.length?"err":"local", a.problems.length?"נמצאו בעיות":"טבלה מוטמעת");
-      this.say("לא הוגדר proxy – אין אימות מול המקור מתוך הדפדפן (CORS).");
-      renderRegistry(a.flagged); return;
+  /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
+  async refresh(manual){
+    if(manual){ this.lines=[]; this.say("── בדיקה "+new Date().toLocaleString("he-IL")+" ──"); }
+    const a=auditAll();
+    if(manual){
+      this.say(`${a.total} שורות · בעיות: ${a.problems.length} · אזהרות: ${a.warnings.length}`);
+      a.problems.forEach(p=>this.say("  ✗ "+p));
+      a.warnings.forEach(w=>this.say("  ⚠ "+w));
     }
-    this.say("מאמת מול המקורות…");
-    for(const t of SCRAPE_TARGETS){
-      try{
-        this.say("  מושך: "+t.name);
-        const r=await fetch(this.buildUrl(t),{cache:"no-store"});
-        if(!r.ok){ this.say("    ✗ סטטוס "+r.status); continue; }
-        const rate=this.parse(await r.text());
-        if(rate===null){ this.say("    ✗ לא נמצא ערך סביר"); continue; }
-        this.say("    ✓ נמצא "+ag(rate)+" כולל מע״מ");
-        this.pill("live","מקור חי"); this.compare(rate,t,a); return;
-      }catch(e){ this.say("    ✗ "+(e.message||"כשל רשת/CORS")); }
+    let d=null, err=null;
+    try{
+      const r=await fetch(DATA_URL+"?t="+Date.now(),{cache:"no-store"});
+      if(!r.ok) throw new Error("סטטוס "+r.status);
+      d=await r.json();
+    }catch(e){ err=e.message||"אין רשת"; }
+
+    if(d){
+      const bad=validData(d);
+      if(bad){
+        this.say("  ✗ קובץ הנתונים נדחה: "+bad);
+        this.pill("err","קובץ נתונים פגום");
+      }else{
+        const fresh = !REMOTE || JSON.stringify(REMOTE)!==JSON.stringify(d);
+        REMOTE=d; save("remote",d); save("remoteAt",iso(new Date()));
+        this.say(fresh?"  ✓ נמשכו תעריפים מעודכנים ל‑"+heb(d.updated||""):"  ✓ אין שינוי.");
+        this.pill("live",this.stamp());
+        if(fresh) refreshAll(); else renderRegistry(auditAll().flagged);
+        return;
+      }
+    }else{
+      this.say("  ✗ לא ניתן למשוך את קובץ הנתונים ("+err+").");
+      this.pill(REMOTE?"local":"local", REMOTE?this.stamp()+" · לא מקוון":"טבלה מוטמעת");
     }
-    this.pill("err","משיכה נכשלה");
     renderRegistry(a.flagged);
   },
-  compare(rateIncl,target,audit){
-    const now=new Date(), cur=valueAt("energy",now), v=valueAt("vat",now);
-    const curIncl=cur.value*(1+v.value);
-    if(Math.abs(rateIncl-curIncl)<0.0005){
-      this.say("  ✓ תואם לטבלה – אין צורך בעדכון."); renderRegistry(audit.flagged); return;
-    }
-    this.say("  ⚠ פער מול הטבלה ("+ag(curIncl)+"). נדרש אישורך.");
-    if(confirm(`נמצא תעריף שונה ב"${target.name}":\n\n${ag(rateIncl)} כולל מע״מ\nלעומת ${ag(curIncl)} בטבלה.\n\nלהוסיף כשורה חדשה מהיום?`)){
-      const today=iso(new Date());
-      ADOPTED.push({ id:"a"+Date.now(), comp:"energy", from:today, to:null, value:rateIncl/(1+v.value),
-        verified:true, estimated:false, origin:"sync",
-        note:`אומץ מ‑«${target.name}» ב‑${heb(today)}. ${ag(rateIncl)} כולל מע״מ חולק ב‑${(1+v.value).toFixed(2)}.`,
-        src:target.url });
-      save("adopted",ADOPTED); this.say("  ✓ אומץ."); refreshAll();
-    } else { this.say("  ✗ נדחה."); renderRegistry(audit.flagged); }
-  }
+  runAll(){ return this.refresh(true); }
 };
 
 /* =========================================================================
@@ -909,15 +926,19 @@ function renderRegistry(flagged){
     html += `<tr class="grp"><td colspan="5">${c.name} <span>· ${c.unit} · ${c.role}</span></td></tr>`;
     timeline(c.key).forEach(x=>{
       const cls = flagged.has(x.id)?"bad" : x.id===cur.id?"now" : x.estimated?"est" : "";
+      /* שורה שנמשכה מקובץ התעריפים המתעדכן אינה שורה שהמשתמש הוסיף, ולכן
+         היא מסומנת אחרת ואין לה כפתור מחיקה – היא תחזור בסנכרון הבא ממילא */
+      const isUser = x.origin!=="builtin" && x.origin!=="auto";
       html += `<tr class="${cls}">
         <td class="c">${fmtVal(c.key,x.value)}
           ${x.id===cur.id?'<span class="tag now">היום</span>':''}
           ${x.estimated?'<span class="tag est">משוער</span>':''}
-          ${x.origin!=="builtin"?'<span class="tag man">נוסף</span>':''}</td>
+          ${x.origin==="auto"?'<span class="tag auto">עודכן אוטומטית</span>':''}
+          ${isUser?'<span class="tag man">נוסף</span>':''}</td>
         <td class="d">${heb(x.from)}</td>
         <td class="d">${heb(x.to)}</td>
         <td><a class="s" href="${x.src}" target="_blank" rel="noopener">מקור</a></td>
-        <td>${x.origin==="builtin"?"":`<button class="x" onclick="delEntry('${x.id}')">✕</button>`}</td></tr>`;
+        <td>${isUser?`<button class="x" onclick="delEntry('${x.id}')">✕</button>`:""}</td></tr>`;
       if(x.note) html += `<tr><td colspan="5" class="regnote">${x.note}</td></tr>`;
     });
   });
@@ -2000,7 +2021,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.1", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.2", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
@@ -2020,7 +2041,6 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   if("IntersectionObserver" in window)
     new IntersectionObserver(es => $("sticky").classList.toggle("show", !es[0].isIntersecting), {threshold:0.15}).observe($("res-card"));
   /* תאריכי הקריאות נשארים ריקים: הם נמלאים מהצילום או ידנית, ולא מומצאים */
-  $("proxy-url").value=load("proxy","");
   ["d-from","d-to"].forEach(id=>$(id).addEventListener("change",()=>{ save(id==="d-from"?"from":"to",$(id).value); recalc(); }));
   $("d-ref").addEventListener("change",recalc);
   $("add-comp").innerHTML=COMPONENTS.map(c=>`<option value="${c.key}">${c.name}</option>`).join("");
@@ -2035,14 +2055,26 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   checkEnv();
   DM.status();
   refreshAll();
-  Sync.runAll(false);
+  Sync.refresh(false);
 })();
-function saveProxy(){ save("proxy",$("proxy-url").value.trim()); Sync.runAll(true); }
 </script>
 <script>
 /* התקנה כאפליקציה (PWA): רושם את ה‑service worker רק כשהדף רץ מכתובת https */
 if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost"))
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").then(reg => {
+    /* כשיוצאת גרסה חדשה של האפליקציה עצמה – מציעים רענון, בלי לחסום כלום.
+       עדכון של התעריפים בלבד לא מגיע לכאן ונכנס בשקט. */
+    reg.addEventListener("updatefound", () => {
+      const sw = reg.installing;
+      if(!sw || !navigator.serviceWorker.controller) return;
+      sw.addEventListener("statechange", () => {
+        if(sw.state !== "installed") return;
+        const b = document.getElementById("upd-bar");
+        if(b) b.classList.remove("hidden");
+      });
+    });
+    setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+  }).catch(() => {}));
 </script>
 </body>
 </html>
