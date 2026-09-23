@@ -1,1 +1,377 @@
-
+{
+ "app": "wattbill-tariffs",
+ "v": 1,
+ "updated": "2026-09-23",
+ "dataFrom": "2023-01-01",
+ "lastCheck": {
+  "at": null,
+  "status": "seed",
+  "source": null
+ },
+ "components": {
+  "energy": [
+   {
+    "id": "e23a",
+    "from": "2023-01-01",
+    "to": "2023-01-31",
+    "value": 0.5342,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 01/2023, לוח 5.3-1 (החלטה 64504 מ‑21.12.2022): תשלום משתנה לצרכן ביתי 53.42 אג׳.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_01_ST.pdf"
+   },
+   {
+    "id": "e23b",
+    "from": "2023-02-01",
+    "to": "2023-03-31",
+    "value": 0.5261,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 02/2023, לוח 5.3-1 (החלטה 64801 מ‑25.1.2023): תשלום משתנה לצרכן ביתי 52.61 אג׳.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_02_ST_UPDATE.pdf"
+   },
+   {
+    "id": "e23c",
+    "from": "2023-04-01",
+    "to": "2024-01-31",
+    "value": 0.5134,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2023, לוח 5.3-1 (החלטה 65203 מ‑26.3.2023, בתוקף מ‑01/04/2023): תשלום משתנה לצרכן ביתי 51.34 אג׳. תעריף זה היה בתוקף עד 31/01/2024, ולכן הוא חל גם על ינואר 2024.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "e24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 0.5252,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.3-1: תשלום משתנה לצרכן ביתי 52.52 אג׳ (בתוקף מ‑01/02/2024).",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "e25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 0.5425,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004: לוח 5.3-1, תשלום משתנה לצרכן ביתי 54.25 אג׳ מ‑1.1.2025.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "e26a",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 0.5451,
+    "verified": true,
+    "estimated": false,
+    "note": "עדכון 01/2026, עלייה של כ‑1.5%.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files_netunei_hasmal_sefer_tariff_01_2026.pdf"
+   },
+   {
+    "id": "e26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 0.5383,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.3-1: רכיב משתנה לצרכן ביתי 53.83 אג׳ (יצור 31.12 + מערכתי 9.29 + רשת 13.42).",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "fixedA": [
+   {
+    "id": "fa23",
+    "from": "2023-01-01",
+    "to": "2024-01-31",
+    "value": 8.24,
+    "verified": true,
+    "estimated": false,
+    "note": "ספרי התעריפים של 2023, לוח 5.4-1 שורה 7: שירותי צרכנות חלוקה, מונה חד־פאזי, 8.24 ₪ לחודש לפני מע״מ (4.19+2.01+2.03). הערך זהה בכל ספרי 2023 ובתוקף עד 31/01/2024.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "fa24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 8.85,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.4-1 שורה 7: שירותי צרכנות חלוקה, מונה חד־פאזי.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "fa25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 9.6,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004, לוח 5.4-1: שירותי צרכנות חלוקה, מונה חד־פאזי, 9.60 ₪ לחודש.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "fa26",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 9.87,
+    "verified": true,
+    "estimated": false,
+    "note": "לוח 5.4 בהחלטת רשות החשמל לתעריפי 1.1.2026, מונה חד־פאזי. לפני מע״מ (11.65 ₪ כולל מע״מ).",
+    "src": "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf"
+   },
+   {
+    "id": "fa26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 9.97,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות חלוקה, מונה חד־פאזי, 9.97 ₪ לחודש לפני מע״מ.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "fixedB": [
+   {
+    "id": "fb23",
+    "from": "2023-01-01",
+    "to": "2024-01-31",
+    "value": 11.47,
+    "verified": true,
+    "estimated": false,
+    "note": "ספרי התעריפים של 2023, לוח 5.4-1 שורה 7: שירותי צרכנות אספקה, מונה חד־פאזי, 11.47 ₪ לחודש לפני מע״מ (1.71+4.92+4.84). סה״כ קבוע חד־פאזי ב‑2023: 19.71 ₪.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "fb24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 12.33,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "fb25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 13.37,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי, 13.37 ₪ לחודש.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "fb26",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 14.87,
+    "verified": true,
+    "estimated": false,
+    "note": "שירותי אספקה, לוח 5.4-1 בהחלטת רשות החשמל ל‑1.1.2026 (14.80 ₪ למונה תלת־פאזי). לפני מע״מ (17.55 ₪ כולל מע״מ).",
+    "src": "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf"
+   },
+   {
+    "id": "fb26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 15.6,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי, 15.60 ₪ לחודש לפני מע״מ. סה״כ קבוע חד־פאזי: 25.57 ₪.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "fixedA3": [
+   {
+    "id": "fa3_23",
+    "from": "2023-01-01",
+    "to": "2024-01-31",
+    "value": 9.54,
+    "verified": true,
+    "estimated": false,
+    "note": "ספרי התעריפים של 2023, לוח 5.4-1 שורה 8: שירותי צרכנות חלוקה, מונה תלת־פאזי, 9.54 ₪ לחודש לפני מע״מ (5.50+2.00+2.04).",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "fa3_24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 10.25,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.4-1 שורה 8: חלוקה, מונה תלת־פאזי.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "fa3_25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 11.12,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004, לוח 5.4-1: חלוקה, מונה תלת־פאזי, 11.12 ₪ לחודש.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "fa3_26",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 11.45,
+    "verified": true,
+    "estimated": false,
+    "note": "החלטת רשות החשמל ל‑1.1.2026: מונה תלת־פאזי בגודל חיבור קטן מ‑3×100 אמפר.",
+    "src": "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf"
+   },
+   {
+    "id": "fa3_26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 11.56,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות חלוקה, מונה תלת־פאזי, 11.56 ₪ לחודש לפני מע״מ.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "fixedB3": [
+   {
+    "id": "fb3_23",
+    "from": "2023-01-01",
+    "to": "2024-01-31",
+    "value": 11.42,
+    "verified": true,
+    "estimated": false,
+    "note": "ספרי התעריפים של 2023, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי, 11.42 ₪ לחודש לפני מע״מ (1.70+4.87+4.85). סה״כ קבוע תלת־פאזי ב‑2023: 20.96 ₪.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "fb3_24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 12.28,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי, 12.28 ₪ לחודש לפני מע״מ (1.83+5.24+5.21).",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "fb3_25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 13.31,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004, לוח 5.4-1: אספקה, מונה תלת־פאזי, 13.31 ₪ לחודש.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "fb3_26",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 14.8,
+    "verified": true,
+    "estimated": false,
+    "note": "החלטת רשות החשמל ל‑1.1.2026, לוח 5.4-1: שירותי אספקה למונה תלת־פאזי.",
+    "src": "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf"
+   },
+   {
+    "id": "fb3_26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 15.53,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי. סה״כ קבוע תלת־פאזי: 27.09 ₪.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "capacity": [
+   {
+    "id": "c23a",
+    "from": "2023-01-01",
+    "to": "2023-03-31",
+    "value": 3.39,
+    "verified": true,
+    "estimated": false,
+    "note": "ספרי התעריפים 01/2023 ו‑02/2023, לוח 5.3-1: תשלום קבוע לצרכן ביתי 3.39 ₪ לכל KVA לשנה.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_01_ST.pdf"
+   },
+   {
+    "id": "c23b",
+    "from": "2023-04-01",
+    "to": "2024-01-31",
+    "value": 3.43,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2023, לוח 5.3-1 (בתוקף מ‑01/04/2023): תשלום קבוע לצרכן ביתי 3.43 ₪ לכל KVA לשנה. בתוקף עד 31/01/2024.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf"
+   },
+   {
+    "id": "c24",
+    "from": "2024-02-01",
+    "to": "2024-12-31",
+    "value": 3.58,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2024, לוח 5.3-1: תשלום קבוע לצרכן ביתי 3.58 ₪ לכל KVA לשנה.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_tarrif_sefer_07_2024.pdf"
+   },
+   {
+    "id": "c25",
+    "from": "2025-01-01",
+    "to": "2025-12-31",
+    "value": 3.54,
+    "verified": true,
+    "estimated": false,
+    "note": "נספח ב׳ להחלטה 70004, לוח 5.3-1: תשלום קבוע 3.54 ₪ לכל KVA לשנה.",
+    "src": "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf"
+   },
+   {
+    "id": "c26",
+    "from": "2026-01-01",
+    "to": "2026-06-30",
+    "value": 5.19,
+    "verified": true,
+    "estimated": false,
+    "note": "לוח 5.3-1 בהחלטת רשות החשמל ל‑1.1.2026, לפני מע״מ (6.12 ₪ כולל מע״מ).",
+    "src": "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf"
+   },
+   {
+    "id": "c26b",
+    "from": "2026-07-01",
+    "to": null,
+    "value": 6.18,
+    "verified": true,
+    "estimated": false,
+    "note": "ספר התעריפים 07/2026, לוח 5.3-1: רכיב קבוע לצרכן ביתי, 6.18 ₪ לכל KVA לשנה לפני מע״מ.",
+    "src": "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf"
+   }
+  ],
+  "vat": [
+   {
+    "id": "v17",
+    "from": "2015-10-01",
+    "to": "2024-12-31",
+    "value": 0.17,
+    "verified": true,
+    "estimated": false,
+    "note": "17% מאוקטובר 2015 עד סוף 2024.",
+    "src": "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf"
+   },
+   {
+    "id": "v18",
+    "from": "2025-01-01",
+    "to": null,
+    "value": 0.18,
+    "verified": true,
+    "estimated": false,
+    "note": "הועלה ל‑18% מ‑1 בינואר 2025, הוראת פרשנות מס׳ 5 של רשות המסים.",
+    "src": "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf"
+   }
+  ]
+ }
+}
