@@ -470,15 +470,9 @@
   <div class="card">
     <div class="step"><div class="txt">איפה הלימוד נשמר</div></div>
     <div class="hint" style="margin-bottom:8px">לימוד ברירת המחדל מובנה באפליקציה ופועל בכל מכשיר בלי שום פעולה.
-      לימוד שלך נשמר <b>רק בדפדפן הזה, במכשיר הזה</b> – הוא לא עובר לבד לטלפון או למחשב אחר.
-      כדי להעביר אותו: לחץ "ייצא לקובץ", שלח את הקובץ למכשיר השני (וואטסאפ, מייל וכו׳), פתח שם את האפליקציה ולחץ "ייבא מקובץ".
-      ניקוי נתוני הדפדפן מוחק את הלימוד, ולכן כדאי לשמור עותק של הקובץ.</div>
-    <input type="file" id="dm-import" accept=".json,application/json" class="hidden" onchange="DM.importFile(event)">
-    <div class="row">
-      <button class="btn-ghost" onclick="DM.exportFile()">⬇️ ייצא לקובץ</button>
-      <label class="btn-ghost" for="dm-import" style="text-align:center;margin:0;cursor:pointer">⬆️ ייבא מקובץ</label>
-    </div>
-    <button class="btn-danger" style="width:100%;margin-top:10px" onclick="DM.wipe()">מחק את הלימוד שלי וחזור לברירת המחדל</button>
+      לימוד שלך נשמר <b>רק בדפדפן הזה, במכשיר הזה</b>, ולא עובר לבד לטלפון או למחשב אחר.
+      להעברה למכשיר אחר או לשמירת עותק – <a href="#" onclick="showView('about');return false;">גיבוי ושחזור במסך אודות</a>.</div>
+    <button class="btn-danger" style="width:100%" onclick="DM.wipe()">מחק את הלימוד שלי וחזור לברירת המחדל</button>
   </div>
 </div>
 
@@ -518,11 +512,26 @@
   <div class="card">
     <div class="ab-t">פרטיות</div>
     <ul class="ab-l">
-      <li>התמונות של המונה <b>לא נשלחות לשום מקום</b>. הפענוח נעשה במכשיר עצמו.</li>
-      <li>הקריאות, ההגדרות והספרות שנלמדו נשמרים <b>רק בדפדפן שלך</b>, ואפשר למחוק אותם בכל רגע במסך ההגדרות ובלשונית הלימוד.</li>
-      <li>האפליקציה לא דורשת הרשמה ולא אוספת מידע על השימוש.</li>
+      <li><b>אין שרת ואין הרשמה.</b> התמונות של המונה לא נשלחות לשום מקום, והפענוח נעשה במכשיר עצמו.</li>
+      <li><b>מה כן נשמר במכשיר:</b> ההגדרות שלך, הספרות שנלמדו מהמונה, ושורות שהוספת או שסונכרנו לטבלת רכיבי העלות.
+          זה נשמר באחסון המקומי של הדפדפן ולא יוצא ממנו.</li>
+      <li><b>מה לא נשמר:</b> התמונות עצמן והקריאות שחושבו. האפליקציה לא מנהלת היסטוריה, וכל חישוב מתחיל מחדש.</li>
     </ul>
     <div class="src" id="sources-about" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="ab-t">גיבוי ושחזור</div>
+    <div class="hint" style="margin-bottom:8px">הגיבוי כולל את <b>כל מה ששמור במכשיר</b>: ההגדרות, הספרות שנלמדו,
+      ושורות שהוספת לטבלת רכיבי העלות.
+      <br><b>מתי המידע הזה נמחק:</b> כשמנקים את נתוני האתר או את נתוני הדפדפן, כשמסירים את האפליקציה מהמכשיר,
+      כשלוחצים "מחק הכל ואפס", ולפעמים גם כשהדפדפן מפנה מקום ביוזמתו. אין שום עותק בשרת, ולכן קובץ הגיבוי הוא העותק היחיד.
+      <br>אותו קובץ משמש גם להעברה למכשיר אחר: שומרים כאן, שולחים לעצמך, ומייבאים שם.</div>
+    <input type="file" id="bk-import" accept=".json,application/json" class="hidden" onchange="backupImport(event)">
+    <div class="row">
+      <button class="btn-ghost" onclick="backupExport()">⬇️ גבה הכל לקובץ</button>
+      <label class="btn-ghost" for="bk-import" style="text-align:center;margin:0;cursor:pointer">⬆️ שחזר מקובץ</label>
+    </div>
   </div>
 </div>
 
@@ -594,16 +603,18 @@
    1. הגדרת הרכיבים
    ========================================================================= */
 const COMPONENTS = [
-  { key:"energy",   name:"תעריף צריכה",   unit:"₪ לקוט״ש",       fmt:"ag",  role:"המחיר לכל קילוואט־שעה" },
-  { key:"fixedA",   name:"תשלום קבוע א׳", unit:"₪ לחודש",         fmt:"nis", role:"רכיב קבוע חודשי, מחושב יומית" },
-  { key:"fixedB",   name:"תשלום קבוע ב׳", unit:"₪ לחודש",         fmt:"nis", role:"רכיב קבוע נוסף, מחושב יומית" },
-  { key:"capacity", name:"תשלום קיבולת",  unit:"₪ לכל KVA לשנה",  fmt:"nis", role:"לפי גודל החיבור, מחושב יומית" },
+  { key:"energy",   name:"תעריף צריכה",   unit:"₪ לקוט״ש, לפני מע״מ", fmt:"ag",  role:"המחיר לכל קילוואט־שעה" },
+  { key:"fixedA",   name:"תשלום קבוע א׳ (חלוקה)", unit:"₪ לחודש, לפני מע״מ",      fmt:"nis", role:"רכיב קבוע חודשי, מחושב יומית" },
+  { key:"fixedB",   name:"תשלום קבוע ב׳ (אספקה)", unit:"₪ לחודש, לפני מע״מ",      fmt:"nis", role:"רכיב קבוע נוסף, מחושב יומית" },
+  { key:"capacity", name:"תשלום קיבולת",  unit:"₪ לכל KVA לשנה, לפני מע״מ",  fmt:"nis", role:"לפי גודל החיבור, מחושב יומית" },
   { key:"vat",      name:"שיעור מע״מ",    unit:"%",               fmt:"pct", role:"נקבע בחקיקה, ציר זמן נפרד" }
 ];
 const COMP = Object.fromEntries(COMPONENTS.map(c=>[c.key,c]));
 
 const GOV_2026 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files_netunei_hasmal_sefer_tariff_01_2026.pdf";
 const GOV_2025 = "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf";
+const PROTO_SRC = "https://protocol.co.il/electricity-price/";
+const KAMA_SRC  = "https://www.kamaze.co.il/reviews/15054/electrical-power/electricity-prices";
 const VAT_SRC  = "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf";
 
 const BUILTIN = {
@@ -620,22 +631,22 @@ const BUILTIN = {
       src:"https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/" }
   ],
   fixedA:[
-    { id:"fa_old", from:"2024-01-01", to:"2025-12-31", value:11.65, verified:false, estimated:true,
+    { id:"fa_old", from:"2024-01-01", to:"2025-12-31", value:9.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"fa26", from:"2026-01-01", to:null, value:11.65, verified:true, estimated:false,
-      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+    { id:"fa26", from:"2026-01-01", to:null, value:9.87, verified:true, estimated:false,
+      note:"רכיב חלוקה, 01/2026, לפני מע״מ. בפרסומים מופיע 11.65 ₪ כולל מע״מ.", src:PROTO_SRC }
   ],
   fixedB:[
-    { id:"fb_old", from:"2024-01-01", to:"2025-12-31", value:17.55, verified:false, estimated:true,
+    { id:"fb_old", from:"2024-01-01", to:"2025-12-31", value:14.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"fb26", from:"2026-01-01", to:null, value:17.55, verified:true, estimated:false,
-      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+    { id:"fb26", from:"2026-01-01", to:null, value:14.87, verified:true, estimated:false,
+      note:"רכיב אספקה, 01/2026, לפני מע״מ. בפרסומים מופיע 17.55 ₪ כולל מע״מ.", src:PROTO_SRC }
   ],
   capacity:[
-    { id:"c_old", from:"2024-01-01", to:"2025-12-31", value:6.12, verified:false, estimated:true,
+    { id:"c_old", from:"2024-01-01", to:"2025-12-31", value:5.19, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"c26", from:"2026-01-01", to:null, value:6.12, verified:true, estimated:false,
-      note:"לפי לוח התעריפים 01/2026.", src:GOV_2026 }
+    { id:"c26", from:"2026-01-01", to:null, value:5.19, verified:true, estimated:false,
+      note:"קיבולת 01/2026, לפני מע״מ. בפרסומים מופיע 6.12 ₪ כולל מע״מ.", src:PROTO_SRC }
   ],
   vat:[
     { id:"v17", from:"2015-10-01", to:"2024-12-31", value:0.17, verified:true, estimated:false,
@@ -650,7 +661,8 @@ const SOURCES = [
   ["רשות החשמל – ספר לוחות התעריפים 01/2026 (PDF רשמי)", GOV_2026],
   ["רשות החשמל – לוחות תעריפים 2025 (PDF רשמי)", GOV_2025],
   ["חברת החשמל – תעריף החשמל הביתי","https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff"],
-  ["מבנה החשבון ודוגמת חישוב","https://protocol.co.il/electricity-price/"],
+  ["מבנה החשבון ודוגמת חישוב (כולל פירוט לפני ואחרי מע״מ)", PROTO_SRC],
+  ["תעריף חשמל ביתי – פירוט רכיבים לפני ואחרי מע״מ", KAMA_SRC],
   ["עדכון 01/07/2026 – 63.52 אג׳","https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/"]
 ];
 const SCRAPE_TARGETS = [
@@ -1869,6 +1881,39 @@ function toggleMenu(){
   document.body.style.overflow = open ? "hidden" : "";
 }
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("menu").classList.contains("hidden")) toggleMenu(); });
+/* גיבוי מלא: כל המפתחות של האפליקציה באחסון המקומי, כולל הספרות שנלמדו */
+const BK_KEYS = () => { const out = []; try{ for(let i=0;i<localStorage.length;i++){ const k = localStorage.key(i);
+    if(k && (k.startsWith("wb_") || k.startsWith("wbdigits_"))) out.push(k); } }catch(e){}
+  return out; };
+function backupExport(){
+  const data = {};
+  for(const k of BK_KEYS()) { try{ data[k] = localStorage.getItem(k); }catch(e){} }
+  if(!Object.keys(data).length){ alert("אין עדיין מידע שמור לגיבוי."); return; }
+  const blob = new Blob([JSON.stringify({ app:"wattbill-backup", v:1, saved:iso(new Date()), appVersion:APP_VERSION, data }, null, 1)],
+                        { type:"application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = `wattbill-backup-${iso(new Date())}.json`; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function backupImport(ev){
+  const f = ev.target.files && ev.target.files[0]; ev.target.value = ""; if(!f) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    let j; try{ j = JSON.parse(fr.result); }catch(e){ alert("הקובץ אינו קובץ גיבוי תקין."); return; }
+    if(!j || j.app !== "wattbill-backup" || typeof j.data !== "object"){ alert("הקובץ אינו קובץ גיבוי של האפליקציה הזו."); return; }
+    const keys = Object.keys(j.data).filter(k => k.startsWith("wb_") || k.startsWith("wbdigits_"));
+    if(!keys.length){ alert("לא נמצא מידע בקובץ."); return; }
+    if(!confirm(`לשחזר ${keys.length} פריטים מהגיבוי מ‑${heb(j.saved || "")}?\n\nהמידע ששמור עכשיו במכשיר יוחלף.`)) return;
+    try{
+      for(const k of BK_KEYS()) localStorage.removeItem(k);
+      for(const k of keys) localStorage.setItem(k, j.data[k]);
+    }catch(e){ alert("השחזור נכשל: " + (e.message || e)); return; }
+    alert("השחזור הושלם. האפליקציה תיטען מחדש.");
+    location.reload();
+  };
+  fr.readAsText(f);
+}
+
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
 const APP_VERSION = "1.0", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
