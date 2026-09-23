@@ -217,6 +217,8 @@
   .dgrid .yes .k{color:#166534;font-weight:700}
   .dgrid .no{background:#fff7ed;border-color:#fdba74}
   .guess{font-size:10.5px;color:var(--muted);text-align:center;margin-top:6px}
+  .autonote:not(:empty){font-size:10.5px;color:var(--brand-d);background:#ecfdf5;border:1px solid #a7f3d0;
+                        border-radius:7px;padding:5px 7px;margin-bottom:6px;line-height:1.5}
   .ocr-out{font-size:24px;font-weight:800;letter-spacing:3px;text-align:center;direction:ltr;
            background:#fff;border:1px dashed #cbd5e1;border-radius:6px;padding:5px;margin:7px 0}
   .conf{font-size:10.5px;color:var(--muted);text-align:center;margin-bottom:6px}
@@ -367,6 +369,11 @@
             <option>25</option><option selected>40</option><option>63</option><option>80</option><option>100</option></select></div>
       </div>
       <div class="hint" id="kva-note" style="margin:0">–</div>
+      <div class="fld" style="margin-top:9px">
+        <label for="n-drums">מספר הגלגלות השחורות במונה</label>
+        <input type="number" id="n-drums" value="6" min="3" max="10" inputmode="numeric" onchange="saveSettings()">
+        <div class="hint">משמש לאיתור האוטומטי ולהתרעה כשנמצאו פחות ספרות. הגלגלת האדומה לא נספרת.</div>
+      </div>
       <details style="margin-top:8px">
         <summary>מקדם מונה (CT)</summary>
         <input type="number" id="meter-factor" value="1" step="0.1" oninput="recalc()">
@@ -836,12 +843,14 @@ function meterBlockHTML(key,title){
     ${scannerHTML(key)}
     <div id="gate-${key}" class="gate hidden">
       <div class="gate-title" id="gtitle-${key}">בדוק את הספרות שזוהו ואשר</div>
+      <div class="autonote" id="auto-${key}"></div>
       <div class="dcells" id="cells-${key}"></div><div class="ocr-out" id="out-${key}">…</div>
       <div class="conf" id="conf-${key}"></div>
       <input type="number" id="edit-${key}" inputmode="numeric" placeholder="תקן את המספר כאן">
       <div class="row" style="margin-top:7px">
         <button class="b-ok" onclick="confirmReading('${key}')">✓ אשר והכנס לשדה</button>
-        <label class="filebtn sm" for="file-${key}" style="margin:0">↺ תמונה אחרת</label></div>
+        <button class="filebtn sm" style="margin:0;border:none" onclick="manualFrame('${key}')">✎ סמן ידנית</button></div>
+      <label class="filebtn sm" for="file-${key}" style="margin-top:6px">↺ תמונה אחרת</label>
       <div class="locked" id="lock-${key}">הקריאה לא תיכנס לחישוב עד שתאשר.</div>
     </div>
   </div>`;
@@ -855,12 +864,19 @@ function openScan(key){
   document.body.style.overflow = "hidden";
 }
 function closeScan(){ $("scan-modal").classList.add("hidden"); document.body.style.overflow = ""; }
+/* מעבר לסימון ידני: פותח את המסגרת על התמונה שכבר נטענה */
+function manualFrame(key){
+  $("gate-"+key).classList.add("hidden");
+  $("crop-"+key).classList.remove("hidden");
+  $("crop-"+key).scrollIntoView({behavior:"smooth", block:"center"});
+}
 function toggleSettings(){
   const el = $("settings"), open = el.classList.toggle("hidden") === false;
   $("set-btn").textContent = open ? "סגור ˄" : "שנה ›";
 }
 function saveSettings(){
-  save("set", { incF:$("inc-f").checked, incC:$("inc-c").checked, incD:$("inc-d").checked, phases:$("phases").value, amps:$("amps").value, disc:$("discount").value });
+  save("set", { incF:$("inc-f").checked, incC:$("inc-c").checked, incD:$("inc-d").checked, phases:$("phases").value,
+                amps:$("amps").value, disc:$("discount").value, drums:$("n-drums").value });
 }
 
 /* לשונית הלימוד: אותה סריקה, אבל במקום "אשר" – הקלדת הקריאה הנכונה ו"למד" */
@@ -869,6 +885,7 @@ function trainBlockHTML(){
   return `${scannerHTML(key)}
     <div id="gate-${key}" class="gate hidden">
       <div class="gate-title" id="gtitle-${key}">שלב 3: הקלד את המספר שעל המונה</div>
+      <div class="autonote" id="auto-${key}"></div>
       <div class="dcells" id="cells-${key}"></div>
       <div class="guess" id="guess-${key}"></div>
       <div class="ocr-out hidden" id="out-${key}"></div>
@@ -877,6 +894,7 @@ function trainBlockHTML(){
       <input type="number" id="edit-${key}" inputmode="numeric" placeholder="הקלד כאן את מה שאתה רואה על המונה">
       <div class="row" style="margin-top:7px">
         <button class="b-ok" onclick="trainLearn()">📚 שלב 4: למד</button>
+        <button class="filebtn sm" style="margin:0;border:none" onclick="manualFrame('train')">✎ סמן ידנית</button>
         <label class="filebtn sm" for="file-${key}" style="margin:0">🖼️ תמונה נוספת</label></div>
       <div class="locked" id="lock-${key}" style="color:var(--muted)"></div>
     </div>`;
@@ -1052,7 +1070,22 @@ function loadImage(file,key){
       cropState[key]={img,vp,zoom:1,base,x:0,y:(vp.clientHeight-img.naturalHeight*base)/2};
       img.style.width=img.naturalWidth+"px"; img.style.height="auto"; $("zoom-"+key).value=1;
       setWinH(key,$("hgt-"+key).value); setWinW(key,$("wid-"+key).value);   /* המסגרת מקבלת את מידות המחוונים כבר בטעינה */
-      applyTransform(key); bindDrag(key); if(key==="train") $("crop-"+key).scrollIntoView({behavior:"smooth",block:"center"}); };
+      applyTransform(key); bindDrag(key);
+      /* קודם ניסיון איתור אוטומטי; רק אם הוא נכשל נפתחת המסגרת הידנית */
+      $("gate-"+key).classList.add("hidden");
+      setTimeout(() => {
+        let ok = false;
+        try{ ok = DM.auto(key); }catch(e){ ok = false; }
+        if(ok){
+          closeCropper(key);
+          $("gate-"+key).classList.remove("hidden"); $("gate-"+key).classList.remove("done");
+          $("gtitle-"+key).textContent = key==="train" ? "שלב 3: הקלד את המספר שעל המונה" : "בדוק את הספרות שזוהו ואשר";
+          $("lock-"+key).textContent = key==="train" ? "" : "הקריאה לא תיכנס לחישוב עד שתאשר.";
+        } else {
+          manualFrame(key);
+          $("conf-"+key).textContent = "";
+        }
+      }, 30); };
     img.onerror=()=>alert("לא ניתן להציג את התמונה הזו.");
     img.src=e.target.result; };
   fr.readAsDataURL(file);
@@ -1209,7 +1242,7 @@ const DM = (() => {
     return comps;
   }
   /* איתור הגלגלות: אזורים בהירים בגודל של ספרה שלא נוגעים בקצה המסגרת; חלקים חופפים מאוחדים */
-  function locate(Gi){
+  function locate(Gi, raw){
     const { w, h, g } = Gi, th = otsuTh(g), ink = new Uint8Array(w*h);
     for(let i=0;i<ink.length;i++) ink[i] = g[i] > th ? 1 : 0;
     const cs = components(ink, w, h).filter(c =>
@@ -1236,6 +1269,7 @@ const DM = (() => {
     const ref = found.map(sd).sort((a,b)=>a-b)[found.length>>1];
     /* נמדד: גלגלות 26–34, אזור בהיר על גוף המונה 14 – הסינון חל גם על חלונות שנמצאו וגם על משלימים */
     const real = found.filter(c => sd(c) >= 0.6*ref);
+    if(raw) return real;
     return gridify(real, w).filter(c => !c.added || sd(c) >= 0.6*ref);
   }
   /* הגלגלות במרווח קבוע: חלון שזז מוחזר למקומו, וחלון חסר בקצה משלים כל עוד מרכזו בתוך המסגרת */
@@ -1314,6 +1348,70 @@ const DM = (() => {
     ctx.putImageData(im, 0, 0); return c;
   }
 
+  /* ---- איתור אוטומטי: הגלגלת האדומה כעוגן, ואחריה השלמת הרשת למספר הגלגלות הידוע ---- */
+  function nDrums(){ const n = parseInt($("n-drums") && $("n-drums").value); return n > 0 && n < 12 ? n : 6; }
+  /* הגלגלת האדומה: הכתם האדום הגדול ביותר בגודל סביר. כתמים גדולים (רקע, ריצוף) נפסלים */
+  function redAnchor(img){
+    const W = 900, sc = W/img.naturalWidth, H = Math.round(img.naturalHeight*sc);
+    const c = document.createElement("canvas"); c.width = W; c.height = H;
+    const x = c.getContext("2d"); x.drawImage(img, 0, 0, W, H);
+    const d = x.getImageData(0, 0, W, H).data, m = new Uint8Array(W*H);
+    for(let i=0,j=0; j<m.length; i+=4, j++){ const R=d[i], G=d[i+1], B=d[i+2];
+      m[j] = (R > 70 && R > 1.45*G && R > 1.45*B) ? 1 : 0; }
+    let best = null;
+    for(const cc of components(m, W, H)){
+      const w = cc.maxX-cc.minX+1, h = cc.maxY-cc.minY+1;
+      if(h < 8 || w < 6 || cc.area < 40) continue;
+      if(w/h < 0.4 || w/h > 2.2) continue;
+      if(w > W*0.2 || h > H*0.2) continue;
+      if(!best || cc.area > best.area) best = cc;
+    }
+    return best ? { x0:best.minX/sc, y0:best.minY/sc, x1:(best.maxX+1)/sc, y1:(best.maxY+1)/sc } : null;
+  }
+  /* רצועת הספרות: משמאל לאדום, בגובה דומה. מוגדלת כך שגובה הגלגלת יישאר בטווח נוח לזיהוי */
+  function stripOf(img, red){
+    const h = red.y1 - red.y0;
+    const X0 = Math.max(0, red.x0 - 9*h), X1 = red.x0;
+    const Y0 = Math.max(0, red.y0 - 0.35*h), Y1 = Math.min(img.naturalHeight, red.y1 + 0.35*h);
+    if(X1 - X0 < 40 || Y1 - Y0 < 15) return null;
+    const up = Math.min(3, Math.max(1, 330/(Y1-Y0)));
+    const c = document.createElement("canvas");
+    c.width = Math.round((X1-X0)*up); c.height = Math.round((Y1-Y0)*up);
+    const ctx = c.getContext("2d"); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, X0, Y0, X1-X0, Y1-Y0, 0, 0, c.width, c.height);
+    const d = ctx.getImageData(0, 0, c.width, c.height).data, g = new Uint8Array(c.width*c.height);
+    for(let i=0,j=0; j<g.length; i+=4, j++) g[j] = (d[i]*0.299 + d[i+1]*0.587 + d[i+2]*0.114) | 0;
+    return { w:c.width, h:c.height, g };
+  }
+  /* השלמה ל‑N גלגלות: המרווח נמדד מהגלגלות שאותרו, והרשת מעוגנת בקצה הימני (הגלגלת האדומה) */
+  function extendGrid(cells, N, gw){
+    if(!cells.length) return [];
+    const med = a => { const s = a.slice().sort((p,q)=>p-q); return s[s.length>>1]; };
+    const cx = cells.map(c => c.x + c.w/2).sort((a,b)=>a-b);
+    let p;
+    if(cx.length >= 2){ const d = []; for(let i=1;i<cx.length;i++) d.push(cx[i]-cx[i-1]);
+      const m0 = med(d); p = med(d.filter(v => v > 0.5*m0)); }
+    else p = cells[0].w*1.25;
+    const w = cells[0].w, h = cells[0].h, y = med(cells.map(c => c.y));
+    const phase = cx[cx.length-1] % p, xs = [];
+    for(let x = phase; x <= gw + p; x += p) if(x + w/2 <= gw + w*0.25) xs.push(x);
+    return xs.slice(-N).map((x, i, arr) => ({ x:x - w/2, y, w, h, added: !cx.some(c => Math.abs(c-x) < w*0.35) }));
+  }
+  /* מנסה לקרוא את המונה מהתמונה כולה. מחזיר false כשלא הצליח – ואז נפתח הסימון הידני */
+  function auto(key){
+    const st = cropState[key]; if(!st) return false;
+    try{
+      const red = redAnchor(st.img); if(!red) return false;
+      const G = stripOf(st.img, red); if(!G) return false;
+      const found = locate(G, true);
+      if(found.length < 2) return false;
+      const cells = extendGrid(found, nDrums(), G.w);
+      if(cells.length < 2) return false;
+      show(key, G, cells, { auto:true, found:found.length });
+      return true;
+    }catch(e){ return false; }
+  }
+
   /* סריקה: איתור, השוואה, והצגה בשער האישור */
   function scan(key, C){
     const I = C.inner;
@@ -1322,19 +1420,23 @@ const DM = (() => {
     const firstRed = cells.findIndex(c => redFrac(C, c) > 0.05);   /* חלון רגיל: 0% אדום; גלגלת אדומה: 11% ומעלה */
     const redCount = firstRed < 0 ? 0 : cells.length - firstRed;
     if(firstRed >= 0) cells = cells.slice(0, firstRed);
+    show(key, C.G, cells, { redCount });
+  }
+  function show(key, G, cells, opt){
+    const redCount = opt.redCount || 0;
     const A = active(), t = A.t, has = Object.keys(t).length > 0;
     const res = cells.map(r => {
       if(!has) return { d:null, low:true };
-      const c = classify(variants(C.G, r), t), b = c[0], m = c[1] ? b.score - c[1].score : 1;
+      const c = classify(variants(G, r), t), b = c[0], m = c[1] ? b.score - c[1].score : 1;
       return { d:b.d, score:b.score, margin:m, low: b.score < MIN_SCORE || m < MIN_MARGIN };
     });
-    last[key] = { G:C.G, cells, res };
+    last[key] = { G, cells, res };
 
     const box = $("cells-"+key); box.innerHTML = "";
     cells.forEach((r, i) => {
       const x = res[i], el = document.createElement("div");
       el.className = "dcell" + (x.low ? " low" : "") + (r.added ? " added" : "");
-      el.appendChild(thumb(C.G, r));
+      el.appendChild(thumb(G, r));
       el.insertAdjacentHTML("beforeend", `<div class="c">${x.d === null ? "·" : x.d + (x.low ? "?" : "")}</div>
         <div class="k">${x.d === null ? "" : x.score.toFixed(2)}</div>`);
       box.appendChild(el);
@@ -1362,6 +1464,11 @@ const DM = (() => {
     if(A.src === "default" && key!=="train" && cells.length)
       msg += ` (זיהוי לפי לימוד ברירת המחדל. אם הזיהוי שגוי כי המונה שלך שונה – למד אותו בלשונית "לימוד מונה".)`;
     if(redCount) msg += " הגלגלת האדומה (עשיריות) לא נכללת בקריאה.";
+    if(cells.length < nDrums() && cells.length)
+      msg = `⚠ נמצאו ${cells.length} ספרות מתוך ${nDrums()} שהוגדרו למונה. ` + msg;
+    $("auto-"+key).textContent = opt.auto
+      ? `אותר אוטומטית בתמונה (${opt.found} גלגלות זוהו ישירות, השאר הושלמו לפי המרווח). לא נכון? לחץ "סמן ידנית".`
+      : "";
     $("conf-"+key).textContent = msg;
   }
 
@@ -1450,7 +1557,7 @@ const DM = (() => {
     try{ localStorage.removeItem(KEY); }catch(e){}
     status(); alert("הלימוד שלך נמחק. האפליקציה חזרה ללימוד ברירת המחדל.");
   }
-  return { crop, scan, learn, status, wipe, exportFile, importFile };
+  return { crop, scan, auto, learn, status, wipe, exportFile, importFile, nDrums };
 })();
 
 function doCrop(key){
@@ -1715,7 +1822,8 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   const st=load("set",null);
   if(st){ $("inc-f").checked = st.incF ?? st.fixed ?? true; $("inc-c").checked = st.incC ?? st.fixed ?? true;
           $("phases").value=st.phases; $("amps").value=st.amps; $("discount").value=st.disc;
-          $("inc-d").checked = st.incD ?? (parseFloat(st.disc) > 0); }
+          $("inc-d").checked = st.incD ?? (parseFloat(st.disc) > 0);
+          if(st.drums) $("n-drums").value = st.drums; }
   setMode(load("mode","kwh"));
   /* הפס בתחתית הטלפון מופיע רק כשכרטיס התוצאה מחוץ למסך */
   if("IntersectionObserver" in window)
