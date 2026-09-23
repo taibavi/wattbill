@@ -73,23 +73,34 @@ def fail(msg):
 
 
 def dump_debug():
-    """בכישלון – מדפיסים דגימה מהטקסט כדי שאפשר יהיה לאבחן בלי לנחש."""
+    """בכישלון – מדפיסים חלונות רצופים מהטקסט סביב העוגנים.
+
+    בגרסה קודמת הודפסו רק שורות שהכילו מילת עוגן, ודווקא שורות המספרים –
+    שאין בהן אף מילה – לא הופיעו. לכן כאן מדפיסים רצף שורות שלם."""
     if not DEBUG:
         return
-    log("")
-    log("─── אבחון: שורות רלוונטיות מהטקסט שחולץ ───")
     for name, text in DEBUG:
-        log("== %s ==" % name)
-        lines = strip_bidi(text).split("\n")
-        shown = 0
+        lines = [l.rstrip() for l in strip_bidi(text).split("\n")]
+        log("")
+        log("─── אבחון: %s ───" % name)
+        spots = []
         for i, l in enumerate(lines):
-            if re.search(r'(משתנה|צרכנות (חלוקה|אספקה)|פאזי|KVA)', l) and l.strip():
-                log("%5d| %s" % (i, l.strip()[:150]))
-                shown += 1
-                if shown >= 30:
+            if re.search(r'(?:תשלום|רכיב)\s*משתנה', l):
+                spots.append(("לוח 5.3-1", i))
+                if len(spots) >= 3:
                     break
-        if not shown:
-            log("  (לא נמצאה אף שורה עם עוגן מוכר – ככל הנראה חילוץ הטקסט נכשל)")
+        for i, l in enumerate(lines):
+            if re.search(r'מונה\s*חד\s*-?\s*פאזי', l):
+                spots.append(("לוח 5.4-1", i))
+                break
+        if not spots:
+            log("  (לא נמצא אף עוגן מוכר – ככל הנראה חילוץ הטקסט נכשל)")
+            continue
+        for label, i in spots[:4]:
+            log("  ·· %s, סביב שורה %d ··" % (label, i))
+            for j in range(max(0, i - 4), min(len(lines), i + 16)):
+                if lines[j].strip():
+                    log("%6d| %s" % (j, lines[j].strip()[:160]))
 
 
 # ----------------------------------------------------------------------------
@@ -231,7 +242,7 @@ def extract_53(lines):
     for i in range(len(lines)):
         if len(nums(lines[i])) < 5 or TOU.search(lines[i]):
             continue
-        ctx = " ".join(lines[max(0, i - 1):i + 1])
+        ctx = " ".join(lines[max(0, i - 4):i + 1])
         if "משתנה" in ctx and re.search(r'אגורות|לקווט|לקוט', ctx):
             var.append(i)
     if not var:
@@ -392,7 +403,158 @@ def parse_blob(text):
     return v, head
 
 
-PARSERS = [("שורות", parse_lines), ("רצף", parse_blob)]
+
+# ----------------------------------------------------------------------------
+# פענוח "חופשי": בלי שום הנחה על מבנה שורות.
+#
+# כל כלי חילוץ מפרק את הטבלאות אחרת – לפעמים תא בכל שורה, לפעמים שורה שלמה,
+# ולפעמים התווית נפרדת מהמספרים בשתי שורות. השיטה הזו מתעלמת לגמרי משורות
+# ומחפשת את המספרים לפי שתי זהויות אריתמטיות בלבד, ולפי הקרבה לתווית בטקסט.
+# ----------------------------------------------------------------------------
+NUM_RE = re.compile(NUM)
+GAP = 16          # כמה תווים שאינם ספרה מותר שיפרידו בין שני מספרים באותה שורה
+SPAN_53 = 260     # אורך מרבי של שורת ערכים בלוח 5.3-1
+SPAN_54 = 150     # אורך מרבי של שורת ערכים בלוח 5.4-1
+
+
+def numbers_with_pos(t):
+    return [(m.start(), m.end(), float(m.group().replace(",", ""))) for m in NUM_RE.finditer(t)]
+
+
+def runs(items, minlen, maxgap, maxspan):
+    """רצפים של מספרים שקרובים זה לזה בטקסט – כלומר שורת טבלה אחת."""
+    out, cur = [], []
+    for it in items:
+        if cur and (it[0] - cur[-1][1]) > maxgap:
+            if len(cur) >= minlen:
+                out.append(cur)
+            cur = []
+        cur.append(it)
+        if len(cur) >= 2 and (cur[-1][1] - cur[0][0]) > maxspan:
+            if len(cur) >= minlen:
+                out.append(cur)
+            cur = cur[-1:]
+    if len(cur) >= minlen:
+        out.append(cur)
+    return out
+
+
+def parse_free(text):
+    t = strip_bidi(text)
+    allnums = numbers_with_pos(t)
+
+    # ---- לוח 5.3-1 ----
+    found = None
+    for m in re.finditer(r'(?:תשלום|רכיב)\s*משתנה', t):
+        if TOU.search(t[m.start():m.start() + 200]):
+            continue                       # לוח תעו"ז, לא תעריף אחיד
+        head = t[max(0, m.start() - 900):m.start() + 120]
+        # המספרים עשויים לשבת לפני התווית או אחריה, תלוי בכלי החילוץ
+        seg = [n for n in allnums if m.start() - SPAN_53 <= n[0] < m.start() + 700]
+        for run in runs(seg, 5, GAP, SPAN_53):
+            vals = [v for _, _, v in run][:6]
+            try:
+                idx = home_index(vals)
+            except Bad:
+                continue
+            energy = vals[idx]
+            if not (20 <= energy <= 130):  # אגורות לקווט"ש
+                continue
+            # שורת הקיבולת תמיד באה מיד אחרי שורת הצריכה. חיפוש גם אחורה היה
+            # תופס את שורת הקיבולת של לוח התעו"ז שמעליה.
+            near = [n for n in allnums if run[-1][1] < n[0] <= run[-1][1] + 500]
+            kva = None
+            for r2 in runs(near, 5, GAP, SPAN_53):
+                lo2, hi2 = min(r2[0][0], run[0][0]), max(r2[-1][1], run[-1][1])
+                if "KVA" not in t[lo2:hi2 + 60]:
+                    continue
+                cv = [v for _, _, v in r2][:6]
+                if len(cv) == len(vals) and 0.5 <= cv[idx] <= 40:
+                    kva = cv[idx]
+                    break
+            if kva is None:
+                continue
+            found = ({"energy": round(energy / 100.0, 6), "capacity": kva}, head)
+            break
+        if found:
+            break
+    if not found:
+        raise Bad("לא נמצאה שורת התשלום המשתנה בלוח 5.3-1.")
+    out, head = found
+
+    # ---- לוח 5.4-1 ----
+    # בלי לאתר את גבולות הלוח: מאתרים ישירות את תיאורי השורות, ולכל תיאור
+    # מחפשים שורת מספרים תקינה בקרבתו. כך תוכן העניינים וכותרות עמוד לא מפריעים.
+    rows = []                              # (מיקום, סכום השורה)
+    for i in range(len(allnums) - 2):
+        a, b, c = allnums[i], allnums[i + 1], allnums[i + 2]
+        if c[1] - a[0] > SPAN_54 or (b[0] - a[1]) > GAP or (c[0] - b[1]) > GAP:
+            continue
+        total = a[2] + b[2] + c[2]
+        if not (3.0 <= total <= 40.0):
+            continue
+        for j in range(max(0, i - 3), min(len(allnums), i + 7)):
+            if i <= j <= i + 2 or abs(allnums[j][0] - a[0]) > SPAN_54:
+                continue
+            if abs(allnums[j][2] - total) <= 0.035:
+                rows.append((a[0], round(allnums[j][2], 2)))
+                break
+
+    # כל תיאורי השורות, כולל "תשלום מראש". שורות התשלום מראש חוזרות על אותם
+    # ערכים, ובספר 07/2026 שורה נחתכת בין עמודים כך שהמספרים שלה רחוקים
+    # מהתיאור – ואז השורה הקרובה ביותר עלולה להיות דווקא של תשלום מראש.
+    # לכן מסמנים אותן, וכל שורת מספרים ש"שייכת" לתיאור תשלום מראש נפסלת.
+    descs = []                             # (מיקום, פאזה, האם תשלום מראש)
+    for suffix, phase in (("", "חד"), ("3", "תלת")):
+        for m in re.finditer(r'מונה\s*(?:תשלום\s*מראש\s*)?' + phase + r'\s*-?\s*פאזי', t):
+            pos = m.start()
+            if "זיכוי" in t[max(0, pos - 80):pos]:
+                continue
+            pre = "תשלום" in m.group() or "תשלום מראש" in t[max(0, pos - 80):pos + 10]
+            descs.append((pos, suffix, pre))
+    descs.sort()
+    if not descs:
+        raise Bad("לא נמצא אף תיאור של שורת מונה בלוח 5.4-1.")
+
+    def owner(rowpos):
+        return min(descs, key=lambda d: abs(d[0] - rowpos))
+
+    usable = [r for r in rows if not owner(r[0])[2]]
+    if len(usable) < 4:
+        raise Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב שאינן תשלום מראש." % len(usable))
+
+    hits = {"": [], "3": []}
+    for pos, suffix, pre in descs:
+        if pre:
+            continue
+        if hits[suffix] and pos - hits[suffix][-1] < 40:
+            continue
+        if not [r for r in usable if abs(r[0] - pos) <= 400]:
+            continue
+        hits[suffix].append(pos)
+    for suffix, phase in (("", "חד"), ("3", "תלת")):
+        if len(hits[suffix]) < 2:
+            raise Bad("נמצאו רק %d שורות «מונה %s־פאזי» עם ערכים תקינים בלוח 5.4-1 (דרושות שתיים)."
+                      % (len(hits[suffix]), phase))
+
+    # סדר השורות בספר קבוע: חלוקה חד, חלוקה תלת, אספקה חד, אספקה תלת
+    order = [hits[""][0], hits["3"][0], hits[""][1], hits["3"][1]]
+    if order != sorted(order):
+        raise Bad("סדר שורות לוח 5.4-1 אינו כמצופה (חלוקה לפני אספקה, חד־פאזי לפני תלת־פאזי).")
+
+    for suffix in ("", "3"):
+        for key, pos in (("A", hits[suffix][0]), ("B", hits[suffix][1])):
+            out["fixed" + key + suffix] = min(usable, key=lambda r: abs(r[0] - pos))[1]
+
+    for key in ("A", "B"):
+        if abs(out["fixed" + key] - out["fixed" + key + "3"]) < 1e-9:
+            raise Bad("בפרק %s החד־פאזי והתלת־פאזי יצאו זהים (%s)." % (key, out["fixed" + key]))
+    if abs(out["fixedA"] - out["fixedB"]) < 1e-9:
+        raise Bad("תעריפי החלוקה והאספקה יצאו זהים – ככל הנראה נקראה אותה טבלה פעמיים.")
+    return out, head
+
+
+PARSERS = [("שורות", parse_lines), ("רצף", parse_blob), ("חופשי", parse_free)]
 
 
 def extract_all(texts):
