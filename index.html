@@ -615,6 +615,8 @@ const GOV_2026 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files
 const GOV_2025 = "https://www.gov.il/BlobFolder/policy/70004/he/Files_Hachlatot_nisp_b_70004.pdf";
 const PROTO_SRC = "https://protocol.co.il/electricity-price/";
 const KAMA_SRC  = "https://www.kamaze.co.il/reviews/15054/electrical-power/electricity-prices";
+const RSHUT_2026 = "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf";
+const ANNEX_0726 = "https://www.bezeq.co.il/media/PDF/energy/tarifim.pdf";
 const VAT_SRC  = "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf";
 
 const BUILTIN = {
@@ -627,26 +629,32 @@ const BUILTIN = {
     { id:"e26a", from:"2026-01-01", to:"2026-06-30", value:0.5451, verified:true, estimated:false,
       note:"עדכון 01/2026, עלייה של כ‑1.5%.", src:GOV_2026 },
     { id:"e26b", from:"2026-07-01", to:null, value:0.5383, verified:true, estimated:false,
-      note:"עדכון חצי־שנתי 07/2026, ירידה של כ‑0.57%.",
-      src:"https://www.colmobil-energy.co.il/kb/israel-electricity-tariff/" }
+      note:"עדכון 01/07/2026: 53.83 אג׳ לקוט״ש, מצוין במפורש כלפני מע״מ.", src:ANNEX_0726 }
   ],
   fixedA:[
     { id:"fa_old", from:"2024-01-01", to:"2025-12-31", value:9.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"fa26", from:"2026-01-01", to:null, value:9.87, verified:true, estimated:false,
-      note:"רכיב חלוקה, 01/2026, לפני מע״מ. בפרסומים מופיע 11.65 ₪ כולל מע״מ.", src:PROTO_SRC }
+    { id:"fa26", from:"2026-01-01", to:"2026-06-30", value:9.87, verified:true, estimated:false,
+      note:"לוח 5.4 בהחלטת רשות החשמל לתעריפי 1.1.2026, מונה חד־פאזי. לפני מע״מ (11.65 ₪ כולל מע״מ).", src:RSHUT_2026 },
+    { id:"fa26b", from:"2026-07-01", to:null, value:15.60, verified:true, estimated:false,
+      note:"עדכון 01/07/2026, לפני מע״מ. חלוקת הסכום בין חלוקה לאספקה שונה בין המקורות, אך הסכום המשותף (25.57 ₪) זהה – והחישוב משתמש בסכום.",
+      src:ANNEX_0726 }
   ],
   fixedB:[
     { id:"fb_old", from:"2024-01-01", to:"2025-12-31", value:14.87, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"fb26", from:"2026-01-01", to:null, value:14.87, verified:true, estimated:false,
-      note:"רכיב אספקה, 01/2026, לפני מע״מ. בפרסומים מופיע 17.55 ₪ כולל מע״מ.", src:PROTO_SRC }
+    { id:"fb26", from:"2026-01-01", to:"2026-06-30", value:14.87, verified:true, estimated:false,
+      note:"שירותי אספקה, לוח 5.4-1 בהחלטת רשות החשמל ל‑1.1.2026 (14.80 ₪ למונה תלת־פאזי). לפני מע״מ (17.55 ₪ כולל מע״מ).", src:RSHUT_2026 },
+    { id:"fb26b", from:"2026-07-01", to:null, value:9.97, verified:true, estimated:false,
+      note:"עדכון 01/07/2026, לפני מע״מ. יחד עם רכיב החלוקה: 25.57 ₪ לחודש לפני מע״מ.", src:ANNEX_0726 }
   ],
   capacity:[
     { id:"c_old", from:"2024-01-01", to:"2025-12-31", value:5.19, verified:false, estimated:true,
       note:"⚠ אין ערך מאומת לתקופה זו. משמש ערך 01/2026 כקירוב.", src:GOV_2026 },
-    { id:"c26", from:"2026-01-01", to:null, value:5.19, verified:true, estimated:false,
-      note:"קיבולת 01/2026, לפני מע״מ. בפרסומים מופיע 6.12 ₪ כולל מע״מ.", src:PROTO_SRC }
+    { id:"c26", from:"2026-01-01", to:"2026-06-30", value:5.19, verified:true, estimated:false,
+      note:"לוח 5.3-1 בהחלטת רשות החשמל ל‑1.1.2026, לפני מע״מ (6.12 ₪ כולל מע״מ).", src:RSHUT_2026 },
+    { id:"c26b", from:"2026-07-01", to:null, value:6.18, verified:true, estimated:false,
+      note:"עדכון 01/07/2026: 6.18 ₪ לכל KVA לשנה, לפני מע״מ, מחולק לפי ימי לוח.", src:ANNEX_0726 }
   ],
   vat:[
     { id:"v17", from:"2015-10-01", to:"2024-12-31", value:0.17, verified:true, estimated:false,
@@ -660,6 +668,8 @@ const SOURCES = [
   ["רשות המסים – העלאת המע״מ מ‑17% ל‑18% (PDF רשמי)", VAT_SRC],
   ["רשות החשמל – ספר לוחות התעריפים 01/2026 (PDF רשמי)", GOV_2026],
   ["רשות החשמל – לוחות תעריפים 2025 (PDF רשמי)", GOV_2025],
+  ["רשות החשמל – החלטה ולוחות תעריפים מ‑1.1.2026 (PDF רשמי)", RSHUT_2026],
+  ["נספח תעריפי חשמל מ‑01/07/2026, כולם לפני מע״מ", ANNEX_0726],
   ["חברת החשמל – תעריף החשמל הביתי","https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff"],
   ["מבנה החשבון ודוגמת חישוב (כולל פירוט לפני ואחרי מע״מ)", PROTO_SRC],
   ["תעריף חשמל ביתי – פירוט רכיבים לפני ואחרי מע״מ", KAMA_SRC],
