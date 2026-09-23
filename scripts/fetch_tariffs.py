@@ -111,10 +111,11 @@ def dump_debug():
             log("   שורה %5d  %s%s  → %s" % (
                 i, "תלת" if suffix == "3" else "חד ", " (תשלום מראש)" if pre else "",
                 ", ".join("%d=%s" % (r[0], r[1]) for r in near) or "אין שורת מספרים תקינה בקרבת מקום"))
-            for j in range(max(0, i - 6), min(len(lines), i + 4)):
-                v = nums(lines[j], 8)
-                if len(v) >= 3 and not any(r[0] == j for r in rows):
-                    log("     נפסלה %5d| %s" % (j, " ".join("%g" % x for x in v)))
+            if not pre:
+                for j in range(max(0, i - 5), min(len(lines), i + 4)):
+                    if lines[j].strip():
+                        mark = "·" if any(r[0] == j for r in rows) else " "
+                        log("    %s%5d| %s" % (mark, j, lines[j].strip()[:130]))
 
 
 # ----------------------------------------------------------------------------
@@ -275,6 +276,21 @@ def extract_53(lines):
     return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 10):i])
 
 
+PHASE_WORD = {"": "חד", "3": "תלת"}
+
+
+def phase_pattern(suffix, prepaid=True):
+    """התיאור «מונה חד־פאזי» בכל הווריאציות שנצפו בספרים.
+
+    בין המילה «מונה» לבין «חד-פאזי» עלול להופיע מספר השורה או שבר שורה
+    (בטבלת האספקה של ספר 07/2026 כתוב «...אצלו מונה   7» ואז «חד - פאזי»),
+    ולכן מותר רווח, ספרה או סימן פיסוק ביניהם. המקף עצמו עשוי להיות מוקף
+    ברווחים או להיעדר."""
+    pre = r'(?:תשלום\s*מראש[\s\d,.)(]{0,12})?' if prepaid else ''
+    return re.compile(r'מונה[\s\d,.)(]{0,12}' + pre + r'(?<![א-ת])'
+                      + PHASE_WORD[suffix] + r'\s*-?\s*פאזי')
+
+
 def line_rows(lines):
     """כל שורות המספרים שנראות כשורת חיוב תקינה (שלושה רכיבים וסכומם)."""
     out = []
@@ -290,10 +306,10 @@ def line_rows(lines):
 def line_descs(lines):
     """תיאורי שורות המונה, עם סימון של שורות «תשלום מראש»."""
     out = []
-    for suffix, phase in (("", "חד"), ("3", "תלת")):
-        pat = re.compile(r'מונה\s*(?:תשלום\s*מראש\s*)?' + phase + r'\s*-?\s*פאזי')
+    for suffix in ("", "3"):
+        pat = phase_pattern(suffix)
         for i in range(len(lines)):
-            ctx = " ".join(lines[i:i + 2])      # התיאור עלול להישבר בין שורות
+            ctx = " ".join(lines[i:i + 3])      # התיאור עלול להישבר בין שורות
             m = pat.search(ctx)
             if not m:
                 continue
@@ -301,7 +317,7 @@ def line_descs(lines):
             if "זיכוי" in around:
                 continue
             pre = "תשלום" in m.group() or "תשלום מראש" in around
-            if out and out[-1][0] >= i - 1 and out[-1][1] == suffix:
+            if out and out[-1][0] >= i - 3 and out[-1][1] == suffix:
                 continue
             out.append((i, suffix, pre))
     out.sort()
@@ -518,7 +534,7 @@ def parse_free(text):
     # לכן מסמנים אותן, וכל שורת מספרים ש"שייכת" לתיאור תשלום מראש נפסלת.
     descs = []                             # (מיקום, פאזה, האם תשלום מראש)
     for suffix, phase in (("", "חד"), ("3", "תלת")):
-        for m in re.finditer(r'מונה\s*(?:תשלום\s*מראש\s*)?' + phase + r'\s*-?\s*פאזי', t):
+        for m in phase_pattern(suffix).finditer(t):
             pos = m.start()
             if "זיכוי" in t[max(0, pos - 80):pos]:
                 continue
@@ -539,7 +555,7 @@ def parse_free(text):
     for pos, suffix, pre in descs:
         if pre:
             continue
-        if hits[suffix] and pos - hits[suffix][-1] < 40:
+        if hits[suffix] and pos - hits[suffix][-1] < 150:
             continue
         if not [r for r in usable if abs(r[0] - pos) <= 700]:
             continue
