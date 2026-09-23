@@ -6,7 +6,7 @@
 הסקריפט רץ ב‑GitHub Actions (לא בדפדפן), ולכן אין לו בעיית CORS מול gov.il.
 הוא:
   1. מאתר את ספר לוחות התעריפים העדכני של רשות החשמל,
-  2. מוריד אותו וממיר ל‑טקסט,
+  2. מוריד אותו וממיר לטקסט (גם עם -layout וגם בלי),
   3. מחלץ את לוח 5.3-1 (תעריף הצריכה והקיבולת לצרכן ביתי)
      ואת לוח 5.4-1 (תשלום קבוע – שירותי חלוקה ואספקה, מונה חד־פאזי ותלת־פאזי),
   4. מוודא שהערכים הגיוניים,
@@ -16,8 +16,14 @@
 כל כישלון ולידציה עוצר את העדכון ומחזיר קוד יציאה שונה מאפס, כדי ש‑GitHub
 ישלח התראה במקום לדחוף נתון פגום לאפליקציה.
 
+הערה על חילוץ הטקסט: כלי חילוץ שונים מסדרים טבלה עברית אחרת לגמרי – לפעמים
+התווית לפני המספרים, לפעמים אחריהם, ולפעמים שורה נחתכת בין עמודים. לכן הפענוח
+כאן אינו מסתמך על סדר, אלא על שתי עובדות אריתמטיות שנכונות בכל המהדורות:
+  • בלוח 5.3-1 התעריף הביתי והכללי זהים, והם שתי העמודות בקצה אחד של השורה.
+  • בלוח 5.4-1 סכום שלושת רכיבי השורה שווה לעמודת הסה״כ של אותה שורה.
+
 שימוש:
-    python3 fetch_tariffs.py --data ../data/tariffs.json
+    python3 fetch_tariffs.py --data data/tariffs.json
     python3 fetch_tariffs.py --text book.txt --dry-run     # בדיקה מקומית
 """
 
@@ -47,7 +53,13 @@ RANGES = {
 }
 MAX_JUMP = 0.30   # שינוי של יותר מ‑30% מול הערך הקיים דורש בדיקה אנושית
 
-NUM = r"-?\d{1,3}(?:,\d{3})*(?:\.\d+)?"
+NUM = r"\d{1,3}(?:,\d{3})*(?:\.\d+)?"
+BIDI = re.compile(r"[‎‏‪-‮⁦-⁩﻿]")
+DEBUG = []
+
+
+class Bad(Exception):
+    """פענוח שלא ניתן לסמוך עליו."""
 
 
 def log(msg):
@@ -56,7 +68,28 @@ def log(msg):
 
 def fail(msg):
     log("FAIL: " + msg)
+    dump_debug()
     sys.exit(2)
+
+
+def dump_debug():
+    """בכישלון – מדפיסים דגימה מהטקסט כדי שאפשר יהיה לאבחן בלי לנחש."""
+    if not DEBUG:
+        return
+    log("")
+    log("─── אבחון: שורות רלוונטיות מהטקסט שחולץ ───")
+    for name, text in DEBUG:
+        log("== %s ==" % name)
+        lines = strip_bidi(text).split("\n")
+        shown = 0
+        for i, l in enumerate(lines):
+            if re.search(r'(משתנה|צרכנות (חלוקה|אספקה)|פאזי|KVA)', l) and l.strip():
+                log("%5d| %s" % (i, l.strip()[:150]))
+                shown += 1
+                if shown >= 30:
+                    break
+        if not shown:
+            log("  (לא נמצאה אף שורה עם עוגן מוכר – ככל הנראה חילוץ הטקסט נכשל)")
 
 
 # ----------------------------------------------------------------------------
@@ -70,19 +103,13 @@ def http_get(url, timeout=60):
 
 
 def candidate_urls(today=None):
-    """כתובות אפשריות לספר התעריפים, מהחדש לישן.
-
-    שמות הקבצים של רשות החשמל עקביים למדי, אבל לא זהים בין מהדורות,
-    ולכן מנסים כמה תבניות ידועות לכל מהדורה חצי‑שנתית."""
+    """כתובות אפשריות לספר התעריפים, מהחדש לישן."""
     today = today or dt.date.today()
     editions = []
     y, half = today.year, 7 if today.month >= 7 else 1
     for _ in range(5):                       # המהדורה הנוכחית וארבע אחורה
         editions.append((half, y))
-        if half == 7:
-            half = 1
-        else:
-            half, y = 7, y - 1
+        half, y = (1, y) if half == 7 else (7, y - 1)
     pats = [
         "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_{m:02d}_{y}.pdf",
         "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/Files_netunei_hasmal_sefer_tariff_{m:02d}_{y}.pdf",
@@ -102,10 +129,9 @@ def discover_from_landing():
     urls = re.findall(r'https?://[^\s"\'<>]+?\.pdf', html)
     urls += ["https://www.gov.il" + u for u in
              re.findall(r'"(/BlobFolder/[^"]+?\.pdf)"', html)]
-    hits = [u for u in urls if re.search(r"(sefer|tarrif|tariff)", u, re.I)]
     seen, out = set(), []
-    for u in hits:
-        if u not in seen:
+    for u in urls:
+        if re.search(r"(sefer|tarrif|tariff)", u, re.I) and u not in seen:
             seen.add(u)
             out.append(u)
     return out
@@ -127,149 +153,294 @@ def download_book(explicit=None):
     fail("לא נמצא אף ספר תעריפים להורדה.")
 
 
-def pdf_to_text(blob):
+def pdf_to_texts(blob):
+    """מחזיר את הטקסט בשתי צורות. -layout שומר על מבנה הטבלה, והמצב הרגיל
+    מפרק אותה – לכל אחד מהם יש מקרים שבהם הוא מצליח והשני לא."""
+    out = []
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, "book.pdf")
         with open(p, "wb") as f:
             f.write(blob)
-        try:
-            out = subprocess.run(["pdftotext", "-enc", "UTF-8", p, "-"],
-                                 capture_output=True, timeout=300)
-        except FileNotFoundError:
-            fail("pdftotext לא מותקן (חבילת poppler-utils).")
-        if out.returncode != 0:
-            fail("pdftotext נכשל: %s" % out.stderr.decode("utf-8", "replace")[:300])
-        return out.stdout.decode("utf-8", "replace")
+        for name, args in (("layout", ["-layout"]), ("raw", [])):
+            try:
+                r = subprocess.run(["pdftotext", "-enc", "UTF-8"] + args + [p, "-"],
+                                   capture_output=True, timeout=300)
+            except FileNotFoundError:
+                fail("pdftotext לא מותקן (חבילת poppler-utils).")
+            if r.returncode == 0 and r.stdout:
+                out.append((name, r.stdout.decode("utf-8", "replace")))
+            else:
+                log("  pdftotext %s נכשל" % name)
+    if not out:
+        fail("המרת ה‑PDF לטקסט נכשלה.")
+    return out
 
 
 # ----------------------------------------------------------------------------
 # 2. חילוץ
 # ----------------------------------------------------------------------------
-def norm(text):
-    """מנרמל רווחים כדי שהחילוץ לא יהיה תלוי באופן שבו ה‑PDF פורק לשורות."""
-    text = text.replace("‏", " ").replace("‎", " ").replace("\xa0", " ")
-    return re.sub(r"\s+", " ", text)
+def strip_bidi(t):
+    """pdftotext עוטף כל שורה עברית בתווי כיווניות בלתי נראים, והם שוברים
+    כל ביטוי רגולרי שמצפה לרצף טקסט. מסירים אותם לפני כל דבר אחר."""
+    return BIDI.sub("", t.replace("\xa0", " "))
 
 
-def nums(s, k):
+def nums(s, k=99):
     return [float(x.replace(",", "")) for x in re.findall(NUM, s)[:k]]
 
 
-def sector_index(header):
-    """בספרי 2023–2024 העמודה הביתית ראשונה; בספר 07/2026 היא אחרונה.
-    קובעים לפי מיקום התווית 'ביתי' מול 'מ"ע' (צובר מתח עליון) בכותרת הלוח עצמו.
-    לא מחפשים 'צובר מ"ע' כמחרוזת אחת כי בחלק מהמהדורות המילה נשברת בין שורות."""
-    b = header.rfind("ביתי")
-    c = max(header.rfind('מ"ע'), header.rfind("מ״ע"))
-    if b < 0 or c < 0:
-        return None
-    return 0 if b < c else -1
+def home_index(vals):
+    """איזו עמודה היא הצרכן הביתי.
+
+    בלוח 5.3-1 יש שש עמודות מגזר, והעמודה הביתית והכללית תמיד זהות זו לזו
+    ויושבות בקצה אחד. בספרי 2023–2024 זהו הקצה הראשון, ובספר 07/2026 הקצה
+    האחרון – ולכן מזהים לפי הזוג השווה ולא לפי מיקום קבוע."""
+    first = abs(vals[0] - vals[1]) < 0.011
+    last = abs(vals[-1] - vals[-2]) < 0.011
+    if first and not last:
+        return 0
+    if last and not first:
+        return -1
+    raise Bad("לא ניתן לזהות את העמודה הביתית בלוח 5.3-1 (הערכים: %s)" %
+              " ".join("%g" % v for v in vals))
 
 
-def extract_53(t):
-    """לוח 5.3-1 – תעריפים אחידים: תעריף הצריכה והקיבולת לצרכן ביתי."""
-    var = re.compile(r'(?:תשלום|רכיב) משתנה:?\s*אגורות\s*לק(?:ו)?וט"ש\s*((?:' + NUM + r'\s+){4,}' + NUM + ')')
-    fix = re.compile(r'(?:תשלום|רכיב) (?:קבוע|קיבולת):?\s*₪\s*ל-?\s*KVA\s*לשנה\s*((?:' + NUM + r'\s+){4,}' + NUM + ')')
-    mv = var.search(t)
-    if not mv:
-        fail("לא נמצאה שורת התשלום המשתנה בלוח 5.3-1.")
-    head = t[max(0, mv.start() - 350):mv.start()]
-    idx = sector_index(head)
-    if idx is None:
-        fail("לא זוהה סדר העמודות בלוח 5.3-1 (לא נמצאו התוויות 'ביתי' ו'צובר מ\"ע').")
-    ev = nums(mv.group(1), 6)
-    if len(ev) < 5:
-        fail("לוח 5.3-1: נמצאו רק %d ערכים בשורת התשלום המשתנה." % len(ev))
-    energy = ev[idx]
-    # ביתי וכללי זהים בכל המהדורות שנבדקו – בדיקת שפיות לסדר העמודות
-    neighbour = ev[1] if idx == 0 else ev[-2]
-    if abs(neighbour - energy) > 0.011:
-        fail("לוח 5.3-1: התעריף הביתי (%.2f) אינו תואם לתעריף הכללי (%.2f) – "
-             "ייתכן שסדר העמודות השתנה." % (energy, neighbour))
-
-    mf = fix.search(t, mv.end() - 5)
-    if not mf:
-        fail("לא נמצאה שורת התשלום הקבוע (KVA) בלוח 5.3-1.")
-    cv = nums(mf.group(1), 6)
-    if len(cv) < 5:
-        fail("לוח 5.3-1: נמצאו רק %d ערכים בשורת התשלום הקבוע." % len(cv))
-    return {"energy": round(energy / 100.0, 6), "capacity": cv[idx]}, head
+def row_total(vals):
+    """הסכום של שורה בלוח 5.4-1: שלושה רכיבים עוקבים שסכומם שווה למספר אחר
+    באותה שורה. עמיד לכך שעמודת הסה״כ מופיעה לפני או אחרי הרכיבים."""
+    hits = set()
+    for i in range(len(vals) - 2):
+        s = sum(vals[i:i + 3])
+        for j, v in enumerate(vals):
+            if (j < i or j >= i + 3) and abs(v - s) <= 0.035:
+                hits.add(round(v, 2))
+    if len(hits) == 1:
+        return hits.pop()
+    return None
 
 
+TOU = re.compile(r'שפל|פסגה|חורף|קיץ|מעבר')
+
+
+def extract_53(lines):
+    """לוח 5.3-1 – תעריף הצריכה והקיבולת לצרכן ביתי.
+
+    התווית עשויה לשבת באותה שורה עם המספרים (לפניהם או אחריהם) או בשורה שמעל,
+    תלוי בכלי החילוץ. שורות של לוחות תעו"ז נפסלות לפי מילות העומס שבהן."""
+    var = []
+    for i in range(len(lines)):
+        if len(nums(lines[i])) < 5 or TOU.search(lines[i]):
+            continue
+        ctx = " ".join(lines[max(0, i - 1):i + 1])
+        if "משתנה" in ctx and re.search(r'אגורות|לקווט|לקוט', ctx):
+            var.append(i)
+    if not var:
+        raise Bad("לא נמצאה שורת התשלום המשתנה בלוח 5.3-1.")
+    i = var[0]
+    ev = nums(lines[i], 6)
+    idx = home_index(ev)
+
+    fix = [j for j in range(i + 1, min(i + 6, len(lines)))
+           if "KVA" in " ".join(lines[max(0, j - 1):j + 1]) and len(nums(lines[j])) >= 5]
+    if not fix:
+        raise Bad("לא נמצאה שורת התשלום הקבוע (KVA) מתחת לשורת התשלום המשתנה.")
+    cv = nums(lines[fix[0]], 6)
+    if len(cv) != len(ev):
+        raise Bad("שורת הקיבולת (%d ערכים) אינה תואמת לשורת הצריכה (%d)." % (len(cv), len(ev)))
+    return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 10):i])
+
+
+def region_54(lines):
+    """גבולות לוח 5.4-1 בתוך המסמך.
+
+    לא כל מהדורה נותנת כותרת נפרדת לטבלת האספקה – בנספחי ההחלטות היא פשוט
+    ממשיכה אחרי טבלת החלוקה. לכן מגדירים אזור אחד, ומבדילים בין שתי הטבלאות
+    לפי סדר השורות: הופעה ראשונה = חלוקה, שנייה = אספקה."""
+    start = None
+    for i, l in enumerate(lines):
+        if "5.4" in l and "תשלום קבוע" in l and "5.4.1" not in l:
+            start = i
+            break
+    if start is None:
+        for i, l in enumerate(lines):
+            if "צרכנות" in l and "חלוקה" in l:
+                start = i
+                break
+    if start is None:
+        raise Bad("לא נמצאה תחילת לוח 5.4-1.")
+    end = len(lines)
+    for i in range(start + 1, len(lines)):
+        if "5.4.1" in lines[i] or re.search(r'2\s*-\s*5\.4|5\.4\s*[–-]\s*:?\s*2', lines[i]):
+            end = i
+            break
+    return start, end
+
+
+def phase_hits(lines, lo, hi):
+    """מיקומי התיאורים של מונה חד־פאזי ותלת־פאזי, בלי שורות תשלום מראש."""
+    out = {"": [], "3": []}
+    for suffix, phase in (("", "חד"), ("3", "תלת")):
+        pat = re.compile(r'מונה\s*' + phase + r'\s*-?\s*פאזי')
+        for i in range(lo, hi):
+            ctx = " ".join(lines[i:i + 2])       # התיאור עלול להישבר בין שורות
+            if not pat.search(ctx):
+                continue
+            around = " ".join(lines[max(lo, i - 2):i + 2])
+            if "תשלום מראש" in around or "זיכוי" in around:
+                continue
+            if out[suffix] and i - out[suffix][-1] <= 1:
+                continue                          # אותה הופעה שנפרסה לשתי שורות
+            out[suffix].append(i)
+    return out
+
+
+def extract_54(lines):
+    """לוח 5.4-1 – תשלום קבוע לשירותי צרכנות, מונה חד־פאזי ותלת־פאזי.
+
+    התיאור של שורה יכול לשבת כמה שורות מעל או מתחת למספרים שלה (ובספר 07/2026
+    אפילו בעמוד הבא), ולכן משייכים כל תיאור לשורת המספרים הקרובה אליו."""
+    lo, hi = region_54(lines)
+    rows = []
+    for i in range(lo, hi):
+        v = nums(lines[i], 8)
+        if len(v) >= 4:
+            t = row_total(v)
+            if t is not None:
+                rows.append((i, t))
+    if len(rows) < 4:
+        raise Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב תקינות." % len(rows))
+
+    hits = phase_hits(lines, lo, hi)
+    out = {}
+    for suffix in ("", "3"):
+        if len(hits[suffix]) < 2:
+            raise Bad("נמצאו רק %d שורות «מונה %s־פאזי» בלוח 5.4-1 (דרושות שתיים: חלוקה ואספקה)."
+                      % (len(hits[suffix]), "חד" if suffix == "" else "תלת"))
+        for key, pos in (("A", hits[suffix][0]), ("B", hits[suffix][1])):
+            out["fixed" + key + suffix] = min(rows, key=lambda r: abs(r[0] - pos))[1]
+
+    for key in ("A", "B"):
+        if abs(out["fixed" + key] - out["fixed" + key + "3"]) < 1e-9:
+            raise Bad("בפרק %s התעריף החד־פאזי והתלת־פאזי יצאו זהים (%s) – "
+                      "ככל הנראה זוהתה אותה שורה פעמיים." % (key, out["fixed" + key]))
+    if abs(out["fixedA"] - out["fixedB"]) < 1e-9:
+        raise Bad("תעריפי החלוקה והאספקה יצאו זהים – ככל הנראה נקראה אותה טבלה פעמיים.")
+    return out
+
+
+# --- פענוח חלופי: כשהטקסט מפורק כך שכל תא בשורה נפרדת, אין שורות טבלה
+#     לעבוד איתן, ולכן מאחדים הכול לרצף אחד וחותכים לפי מספור השורות בלוח.
 ROW_RE = re.compile(r'חודשיים\s+((?:' + NUM + r'\s+){3,}' + NUM + ')')
 
 
-def priced_rows(block):
-    """כל שורות החיוב הדו‑חודשיות בפרק, כ‑(מיקום, סכום).
-
-    בלוח 5.4-1 כל שורה בנויה משלושה רכיבים ואחריהם עמודות סכום שסדרן משתנה
-    בין המהדורות (ב‑07/2024 הסכום אחרון, ב‑07/2023 הוא ראשון). לכן מחשבים את
-    סכום שלושת הרכיבים ובוחרים את העמודה שתואמת לו – זה עמיד לשינוי סדר."""
-    out = []
-    for m in ROW_RE.finditer(block):
-        v = nums(m.group(1), 7)
-        if len(v) < 4:
-            continue
-        total = sum(v[:3])
-        for cand in v[3:6]:
-            if abs(cand - total) <= 0.035:
-                out.append((m.start(), cand))
-                break
-    return out
+def extract_53_blob(t):
+    m = re.search(r'(?:תשלום|רכיב) משתנה[:\s]*אגורות\s*לק[\u05d5\u05d8\u05e9"\u05f4]{2,5}\s*((?:'
+                  + NUM + r'\s+){4,}' + NUM + ')', t)
+    if not m:
+        raise Bad("לא נמצאה שורת התשלום המשתנה בלוח 5.3-1.")
+    ev = nums(m.group(1), 6)
+    idx = home_index(ev)
+    mf = re.search(r'KVA\s*לשנה\s*((?:' + NUM + r'\s+){4,}' + NUM + ')', t[m.start():])
+    if not mf:
+        raise Bad("לא נמצאה שורת התשלום הקבוע (KVA) בלוח 5.3-1.")
+    cv = nums(mf.group(1), 6)
+    if len(cv) != len(ev):
+        raise Bad("שורת הקיבולת אינה תואמת לשורת הצריכה.")
+    return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, t[max(0, m.start() - 350):m.start()]
 
 
-def extract_54(t):
-    """לוח 5.4-1 – תשלום קבוע לשירותי צרכנות, שורות 7 (חד־פאזי) ו‑8 (תלת־פאזי).
-
-    שתי מלכודות שנצפו בפועל:
-      • המקף משתנה בין המהדורות: 'חד-פאזי', 'חד- פאזי', 'חד - פאזי'.
-      • ב‑07/2026 שורה 8 נחתכת בין עמודים, כך שהמספרים שלה מופיעים *לפני*
-        תיאור השורה. לכן בוחרים את שורת המספרים הקרובה ביותר לתיאור,
-        לא בהכרח את זו שאחריו."""
+def extract_54_blob(t):
     out = {}
     secs = [("A", "צרכנות חלוקה"), ("B", "צרכנות אספקה")]
-    for i, (skey, sanchor) in enumerate(secs):
-        si = t.find(sanchor)
+    for i, (key, anchor) in enumerate(secs):
+        si = t.find(anchor)
         if si < 0:
-            fail("לא נמצא הפרק «%s» בלוח 5.4-1." % sanchor)
+            raise Bad("לא נמצא הפרק «%s» בלוח 5.4-1." % anchor)
         stop = t.find(secs[1][1], si + 1) if i == 0 else len(t)
         block = t[si: stop if stop > si else len(t)]
-
-        # חיתוך לשורות לפי המספור בעמודה הראשונה. לוקחים כל שורה במלואה,
-        # כולל מה שגלש לעמוד הבא, ורק אז מחפשים בתוכה את המספרים והתיאור.
         starts = [m.start() for m in re.finditer(r'(?<!\d)\d{1,2}\s+תעריף אחיד', block)]
         if len(starts) < 2:
-            fail("בפרק «%s» לא זוהו שורות התעריף האחיד." % sanchor)
+            raise Bad("בפרק «%s» לא זוהו שורות התעריף האחיד." % anchor)
         starts.append(len(block))
-        for rkey, phase in (("", "חד"), ("3", "תלת")):
-            pat = re.compile(r'מונה\s+' + phase + r'\s*-\s*פאזי')
-            seg = None
-            for a, b in zip(starts, starts[1:]):
-                s = block[a:b]
-                if pat.search(s) and "תשלום מראש" not in s:
-                    seg = s
-                    break
+        for suffix, phase in (("", "חד"), ("3", "תלת")):
+            pat = re.compile(r'מונה\s*' + phase + r'\s*-?\s*פאזי')
+            seg = next((block[a:b] for a, b in zip(starts, starts[1:])
+                        if pat.search(block[a:b]) and "תשלום מראש" not in block[a:b]), None)
             if seg is None:
-                fail("לא נמצאה שורת «מונה %s־פאזי» בפרק «%s»." % (phase, sanchor))
-            vals = priced_rows(seg)
-            if not vals:
-                fail("לא ניתן לאמת את הסכום בשורת «מונה %s־פאזי» בפרק «%s»."
-                     % (phase, sanchor))
-            out["fixed" + skey + rkey] = vals[0][1]
-    # בכל המהדורות שנבדקו התעריף התלת־פאזי שונה מהחד־פאזי. זהות ביניהם
-    # פירושה שנבחרה אותה שורה פעמיים – עדיף להיכשל מאשר לפרסם ערך שגוי.
-    for skey in ("A", "B"):
-        if abs(out["fixed" + skey] - out["fixed" + skey + "3"]) < 1e-9:
-            fail("בפרק %s התעריף החד־פאזי והתלת־פאזי יצאו זהים (%s) – "
-                 "ככל הנראה זוהתה אותה שורה פעמיים." % (skey, out["fixed" + skey]))
+                raise Bad("לא נמצאה שורת «מונה %s־פאזי» בפרק «%s»." % (phase, anchor))
+            m = ROW_RE.search(seg)
+            val = row_total(nums(m.group(1), 6)) if m else None
+            if val is None:
+                raise Bad("לא ניתן לאמת את הסכום בשורת «מונה %s־פאזי» בפרק «%s»." % (phase, anchor))
+            out["fixed" + key + suffix] = val
+        if abs(out["fixed" + key] - out["fixed" + key + "3"]) < 1e-9:
+            raise Bad("בפרק %s החד־פאזי והתלת־פאזי יצאו זהים." % key)
     return out
 
 
-def extract_all(text):
-    t = norm(text)
-    v, head = extract_53(t)
-    v.update(extract_54(t))
+def parse_lines(text):
+    lines = [l.strip() for l in strip_bidi(text).split("\n")]
+    v, head = extract_53(lines)
+    v.update(extract_54(lines))
     return v, head
+
+
+def parse_blob(text):
+    t = re.sub(r"\s+", " ", strip_bidi(text))
+    v, head = extract_53_blob(t)
+    v.update(extract_54_blob(t))
+    return v, head
+
+
+PARSERS = [("שורות", parse_lines), ("רצף", parse_blob)]
+
+
+def extract_all(texts):
+    """מריצים כל שיטת פענוח על כל צורת טקסט. מספיק שאחת מצליחה, אבל אם שתיים
+    מצליחות והן לא מסכימות – עוצרים, כי אז אי אפשר לדעת מי צודקת."""
+    results, errors = [], []
+    for tname, text in texts:
+        DEBUG.append((tname, text))
+        for pname, fn in PARSERS:
+            try:
+                v, head = fn(text)
+                results.append(("%s/%s" % (tname, pname), v, head))
+                log("  ✓ פוענח מ‑%s בשיטת %s" % (tname, pname))
+            except Bad as e:
+                errors.append("%s/%s: %s" % (tname, pname, e))
+            except Exception as e:                            # noqa: BLE001
+                errors.append("%s/%s: %s" % (tname, pname, e))
+    if not results:
+        fail("הפענוח נכשל בכל השיטות. " + " | ".join(errors[:6]))
+    base = results[0][1]
+    for name, v, _ in results[1:]:
+        for k in base:
+            if k in v and abs(v[k] - base[k]) > 1e-9:
+                fail("שתי שיטות פענוח לא הסכימו על «%s» (%s מול %s, לפי %s)."
+                     % (k, base[k], v[k], name))
+    return base, results[0][2]
+
+
+def effective_date(head, today=None):
+    """תאריך התחילה של המהדורה, מתוך כותרת לוח 5.3-1.
+
+    הכותרת מכילה גם את תאריך ההחלטה וגם את תאריך העדכון האחרון; המאוחר
+    מביניהם הוא תאריך התחילה (למשל 21/12/2022 מול 01/01/2023)."""
+    today = today or dt.date.today()
+    cands = []
+    for d, mo, y in re.findall(r'\b(\d{1,2})[/.](\d{1,2})[/.](20\d{2})\b', head):
+        try:
+            cands.append(dt.date(int(y), int(mo), int(d)))
+        except ValueError:
+            pass
+    if not cands:
+        # ניחוש של תאריך התחילה מסוכן יותר מכישלון: הוא עלול להדביק ערכים
+        # ישנים לתאריך חדש. עדיף לעצור ולהתריע.
+        fail("לא נמצא תאריך תחילה בכותרת לוח 5.3-1 – לא ניתן לדעת ממתי התעריף בתוקף.")
+    eff = max(cands)
+    if eff > today + dt.timedelta(days=400):
+        fail("תאריך התחילה שחולץ (%s) רחוק מדי בעתיד – ככל הנראה פענוח שגוי." % eff)
+    return eff.isoformat()
 
 
 # ----------------------------------------------------------------------------
@@ -277,9 +448,7 @@ def extract_all(text):
 # ----------------------------------------------------------------------------
 def current_value(data, key):
     rows = data["components"].get(key) or []
-    if not rows:
-        return None
-    return sorted(rows, key=lambda r: r["from"])[-1]
+    return sorted(rows, key=lambda r: r["from"])[-1] if rows else None
 
 
 def validate(found, data):
@@ -319,51 +488,37 @@ def merge(data, found, src, eff):
     return changed
 
 
-def effective_date(head, today=None):
-    """תאריך התחילה של המהדורה, מתוך כותרת לוח 5.3-1 עצמה.
-
-    הכותרת מכילה גם את תאריך ההחלטה וגם את 'תאריך עדכון אחרון'; המאוחר
-    מביניהם הוא תמיד תאריך התחילה (למשל 21/12/2022 מול 01/01/2023)."""
-    today = today or dt.date.today()
-    cands = []
-    for d, mo, y in re.findall(r'\b(\d{1,2})/(\d{1,2})/(20\d{2})\b', head):
-        try:
-            cands.append(dt.date(int(y), int(mo), int(d)))
-        except ValueError:
-            pass
-    if not cands:
-        fail("לא נמצא תאריך תחילה בכותרת לוח 5.3-1.")
-    eff = max(cands)
-    if eff > today + dt.timedelta(days=400):
-        fail("תאריך התחילה שחולץ (%s) רחוק מדי בעתיד – ככל הנראה פענוח שגוי." % eff)
-    return eff.isoformat()
-
-
 # ----------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", default="data/tariffs.json")
     ap.add_argument("--url", help="כתובת ספר תעריפים מפורשת")
     ap.add_argument("--text", help="קובץ טקסט מוכן, במקום הורדה (לבדיקות)")
+    ap.add_argument("--pdf", help="קובץ PDF מקומי, במקום הורדה (לבדיקות)")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
 
     if a.text:
         src = a.text
-        text = open(a.text, encoding="utf-8", errors="replace").read()
+        texts = [("file", open(a.text, encoding="utf-8", errors="replace").read())]
+    elif a.pdf:
+        src = a.pdf
+        texts = pdf_to_texts(open(a.pdf, "rb").read())
     else:
         log("מאתר את ספר התעריפים…")
         src, blob = download_book(a.url)
-        text = pdf_to_text(blob)
-    log("אורך הטקסט: %d תווים" % len(text))
+        texts = pdf_to_texts(blob)
+    for n, t in texts:
+        log("  טקסט %s: %d תווים" % (n, len(t)))
 
-    found, head = extract_all(text)
+    found, head = extract_all(texts)
     eff = effective_date(head)
     log("בתוקף מ‑%s" % eff)
     for k in sorted(found):
         log("  %-9s %s" % (k, found[k]))
 
-    if a.dry_run and not os.path.exists(a.data):
+    if not os.path.exists(a.data):
+        log("(אין קובץ נתונים להשוות אליו – עוצר כאן)")
         return 0
 
     with open(a.data, encoding="utf-8") as f:
