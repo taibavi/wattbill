@@ -35,10 +35,24 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 
-UA = "Mozilla/5.0 (compatible; wattbill-tariff-bot/1.0; +https://github.com/taibavi/wattbill)"
+# gov.il חוסם בקשות שנראות אוטומטיות, ומגביל קצב אחרי כמה הורדות רצופות של
+# קובץ בגודל 4MB. לכן כותרות דפדפניות, השהיות בין ניסיונות, וניסיון חוזר.
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+HEADERS = {"User-Agent": UA, "Accept-Language": "he-IL,he;q=0.9,en;q=0.8",
+           "Accept": "application/pdf,text/html;q=0.9,*/*;q=0.8"}
+RETRY_CODES = (403, 408, 425, 429, 500, 502, 503, 504)
+BACKOFF = (15, 45)                      # שניות, בין ניסיונות חוזרים
 LANDING = "https://www.gov.il/he/pages/tariffbook"
+
+# הכתובת שכבר הוכחה כעובדת נבדקת ראשונה, כדי לא להטריד את האתר בעשרים בקשות.
+KNOWN_URLS = [
+    "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefer_tariff_07_2026.pdf",
+]
 
 # ----------------------------------------------------------------------------
 # טווחי שפיות. ערך מחוץ לטווח = פענוח שגוי, לא תעריף חדש.
@@ -121,11 +135,29 @@ def dump_debug():
 # ----------------------------------------------------------------------------
 # 1. איתור והורדה
 # ----------------------------------------------------------------------------
-def http_get(url, timeout=60):
-    req = urllib.request.Request(url, headers={"User-Agent": UA,
-                                               "Accept-Language": "he,en;q=0.8"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read()
+def describe(e):
+    if isinstance(e, urllib.error.HTTPError):
+        return "HTTP %s %s" % (e.code, e.reason)
+    return "%s: %s" % (type(e).__name__, e)
+
+
+def http_get(url, timeout=90, tries=1):
+    """מוריד, עם ניסיונות חוזרים על שגיאות שמעידות על הגבלת קצב."""
+    last = None
+    for k in range(tries):
+        if k:
+            time.sleep(BACKOFF[min(k - 1, len(BACKOFF) - 1)])
+        try:
+            with urllib.request.urlopen(
+                    urllib.request.Request(url, headers=HEADERS), timeout=timeout) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            last = e
+            if e.code not in RETRY_CODES:
+                raise
+        except Exception as e:                                # noqa: BLE001
+            last = e
+    raise last
 
 
 def candidate_urls(today=None):
@@ -150,7 +182,7 @@ def discover_from_landing():
     try:
         html = http_get(LANDING).decode("utf-8", "replace")
     except Exception as e:                                    # noqa: BLE001
-        log("  דף הנחיתה לא נגיש: %s" % e)
+        log("  דף הנחיתה לא נגיש: %s" % describe(e))
         return []
     urls = re.findall(r'https?://[^\s"\'<>]+?\.pdf', html)
     urls += ["https://www.gov.il" + u for u in
@@ -164,19 +196,40 @@ def discover_from_landing():
 
 
 def download_book(explicit=None):
-    urls = [explicit] if explicit else (discover_from_landing() + candidate_urls())
-    for url in urls:
+    """מנסה את הכתובות בשני סבבים: קודם מעבר מהיר על כולן, ואם אף אחת לא
+    נענתה – סבב שני על המועמדות הראשונות עם השהיות, למקרה של הגבלת קצב."""
+    if explicit:
+        urls = [explicit]
+    else:
+        urls, seen = [], set()
+        for u in KNOWN_URLS + discover_from_landing() + candidate_urls():
+            if u not in seen:
+                seen.add(u)
+                urls.append(u)
+
+    def attempt(url, tries):
         try:
-            blob = http_get(url)
+            blob = http_get(url, tries=tries)
         except Exception as e:                                # noqa: BLE001
-            log("  לא זמין: %s (%s)" % (url, type(e).__name__))
-            continue
+            log("  לא זמין: %s (%s)" % (url, describe(e)))
+            return None
         if not blob.startswith(b"%PDF"):
             log("  לא PDF: %s" % url)
-            continue
+            return None
         log("  נמצא ספר תעריפים: %s (%d KB)" % (url, len(blob) // 1024))
-        return url, blob
-    fail("לא נמצא אף ספר תעריפים להורדה.")
+        return blob
+
+    for url in urls:
+        blob = attempt(url, 1)
+        if blob:
+            return url, blob
+    log("  אף כתובת לא נענתה בסבב הראשון – ממתין ומנסה שוב.")
+    for url in urls[:3]:
+        blob = attempt(url, 3)
+        if blob:
+            return url, blob
+    fail("לא נמצא אף ספר תעריפים להורדה. אם כל הכתובות החזירו HTTP 403 או 429, "
+         "זו הגבלת קצב זמנית של gov.il ולא תקלה בנתונים – כדאי לנסות שוב מאוחר יותר.")
 
 
 def pdf_to_texts(blob):
