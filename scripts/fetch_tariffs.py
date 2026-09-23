@@ -96,11 +96,25 @@ def dump_debug():
         if not spots:
             log("  (לא נמצא אף עוגן מוכר – ככל הנראה חילוץ הטקסט נכשל)")
             continue
-        for label, i in spots[:4]:
+        for label, i in spots[:3]:
             log("  ·· %s, סביב שורה %d ··" % (label, i))
             for j in range(max(0, i - 4), min(len(lines), i + 16)):
                 if lines[j].strip():
                     log("%6d| %s" % (j, lines[j].strip()[:160]))
+        try:
+            descs, rows = line_descs(lines), line_rows(lines)
+        except Exception:                                     # noqa: BLE001
+            continue
+        log("  ·· ניתוח לוח 5.4-1: %d תיאורים, %d שורות חיוב ··" % (len(descs), len(rows)))
+        for i, suffix, pre in descs[:10]:
+            near = [r for r in rows if abs(r[0] - i) <= 10]
+            log("   שורה %5d  %s%s  → %s" % (
+                i, "תלת" if suffix == "3" else "חד ", " (תשלום מראש)" if pre else "",
+                ", ".join("%d=%s" % (r[0], r[1]) for r in near) or "אין שורת מספרים תקינה בקרבת מקום"))
+            for j in range(max(0, i - 6), min(len(lines), i + 4)):
+                v = nums(lines[j], 8)
+                if len(v) >= 3 and not any(r[0] == j for r in rows):
+                    log("     נפסלה %5d| %s" % (j, " ".join("%g" % x for x in v)))
 
 
 # ----------------------------------------------------------------------------
@@ -261,90 +275,84 @@ def extract_53(lines):
     return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 10):i])
 
 
-def regions_54(lines):
-    """כל המועמדים לגבולות לוח 5.4-1, לפי סדר הופעתם.
-
-    ההופעה הראשונה של הכותרת היא כמעט תמיד בתוכן העניינים ולא בלוח עצמו,
-    ולכן מחזירים את כל המועמדים והקורא בוחר את זה שיש בו שורות חיוב אמיתיות."""
+def line_rows(lines):
+    """כל שורות המספרים שנראות כשורת חיוב תקינה (שלושה רכיבים וסכומם)."""
     out = []
     for i, l in enumerate(lines):
-        if not (("5.4" in l and "תשלום קבוע" in l and "5.4.1" not in l)
-                or ("צרכנות" in l and "חלוקה" in l)):
-            continue
-        end = len(lines)
-        for j in range(i + 3, len(lines)):
-            if "5.4.1" in lines[j] or re.search(r'2\s*-\s*5\.4|5\.4\s*[–-]\s*:?\s*2', lines[j]):
-                end = j
-                break
-        out.append((i, end))
-    if not out:
-        raise Bad("לא נמצאה תחילת לוח 5.4-1.")
+        v = nums(l, 8)
+        if len(v) >= 4:
+            t = row_total(v)
+            if t is not None and 3.0 <= t <= 40.0:
+                out.append((i, t))
     return out
 
 
-def phase_hits(lines, lo, hi):
-    """מיקומי התיאורים של מונה חד־פאזי ותלת־פאזי, בלי שורות תשלום מראש."""
-    out = {"": [], "3": []}
+def line_descs(lines):
+    """תיאורי שורות המונה, עם סימון של שורות «תשלום מראש»."""
+    out = []
     for suffix, phase in (("", "חד"), ("3", "תלת")):
-        pat = re.compile(r'מונה\s*' + phase + r'\s*-?\s*פאזי')
-        for i in range(lo, hi):
-            ctx = " ".join(lines[i:i + 2])       # התיאור עלול להישבר בין שורות
-            if not pat.search(ctx):
+        pat = re.compile(r'מונה\s*(?:תשלום\s*מראש\s*)?' + phase + r'\s*-?\s*פאזי')
+        for i in range(len(lines)):
+            ctx = " ".join(lines[i:i + 2])      # התיאור עלול להישבר בין שורות
+            m = pat.search(ctx)
+            if not m:
                 continue
-            around = " ".join(lines[max(lo, i - 2):i + 2])
-            if "תשלום מראש" in around or "זיכוי" in around:
+            around = " ".join(lines[max(0, i - 2):i + 2])
+            if "זיכוי" in around:
                 continue
-            if out[suffix] and i - out[suffix][-1] <= 1:
-                continue                          # אותה הופעה שנפרסה לשתי שורות
-            out[suffix].append(i)
+            pre = "תשלום" in m.group() or "תשלום מראש" in around
+            if out and out[-1][0] >= i - 1 and out[-1][1] == suffix:
+                continue
+            out.append((i, suffix, pre))
+    out.sort()
     return out
 
 
 def extract_54(lines):
     """לוח 5.4-1 – תשלום קבוע לשירותי צרכנות, מונה חד־פאזי ותלת־פאזי.
 
-    התיאור של שורה יכול לשבת כמה שורות מעל או מתחת למספרים שלה (ובספר 07/2026
-    אפילו בעמוד הבא), ולכן משייכים כל תיאור לשורת המספרים הקרובה אליו."""
-    last = None
-    for lo, hi in regions_54(lines):
-        rows = []
-        for i in range(lo, hi):
-            v = nums(lines[i], 8)
-            if len(v) >= 4:
-                t = row_total(v)
-                if t is not None:
-                    rows.append((i, t))
-        if len(rows) < 4:
-            last = Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב תקינות." % len(rows))
-            continue                        # ככל הנראה תוכן העניינים, לא הלוח
-        try:
-            return rows_to_values(lines, lo, hi, rows)
-        except Bad as e:
-            last = e
-    raise last
+    בלי לאתר את גבולות הלוח: כותרות בתוכן העניינים ובראשי עמודים הטעו כל ניסיון
+    לחתוך אזור. במקום זה מאתרים ישירות את תיאורי השורות, ולכל תיאור מחפשים שורת
+    מספרים תקינה בקרבתו. שורות «תשלום מראש» מסמנות מספרים שאינם שייכים לנו."""
+    rows = line_rows(lines)
+    descs = line_descs(lines)
+    if len(rows) < 4:
+        raise Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב תקינות." % len(rows))
+    if not descs:
+        raise Bad("לא נמצא אף תיאור של שורת מונה בלוח 5.4-1.")
 
+    def owner(r):
+        return min(descs, key=lambda d: abs(d[0] - r[0]))
 
-def rows_to_values(lines, lo, hi, rows):
-    hits = phase_hits(lines, lo, hi)
+    usable = [r for r in rows if not owner(r)[2]]
+    hits = {"": [], "3": []}
+    for i, suffix, pre in descs:
+        if pre or not [r for r in usable if abs(r[0] - i) <= 8]:
+            continue
+        hits[suffix].append(i)
+    for suffix, phase in (("", "חד"), ("3", "תלת")):
+        if len(hits[suffix]) < 2:
+            raise Bad("נמצאו רק %d שורות «מונה %s־פאזי» עם ערכים תקינים בלוח 5.4-1 (דרושות שתיים)."
+                      % (len(hits[suffix]), phase))
+
+    order = [hits[""][0], hits["3"][0], hits[""][1], hits["3"][1]]
+    if order != sorted(order):
+        raise Bad("סדר שורות לוח 5.4-1 אינו כמצופה.")
+
     out = {}
     for suffix in ("", "3"):
-        if len(hits[suffix]) < 2:
-            raise Bad("נמצאו רק %d שורות «מונה %s־פאזי» בלוח 5.4-1 (דרושות שתיים: חלוקה ואספקה)."
-                      % (len(hits[suffix]), "חד" if suffix == "" else "תלת"))
         for key, pos in (("A", hits[suffix][0]), ("B", hits[suffix][1])):
-            out["fixed" + key + suffix] = min(rows, key=lambda r: abs(r[0] - pos))[1]
-
+            out["fixed" + key + suffix] = min(usable, key=lambda r: abs(r[0] - pos))[1]
     for key in ("A", "B"):
         if abs(out["fixed" + key] - out["fixed" + key + "3"]) < 1e-9:
-            raise Bad("בפרק %s התעריף החד־פאזי והתלת־פאזי יצאו זהים (%s) – "
-                      "ככל הנראה זוהתה אותה שורה פעמיים." % (key, out["fixed" + key]))
+            raise Bad("בפרק %s החד־פאזי והתלת־פאזי יצאו זהים (%s)." % (key, out["fixed" + key]))
     if abs(out["fixedA"] - out["fixedB"]) < 1e-9:
-        raise Bad("תעריפי החלוקה והאספקה יצאו זהים – ככל הנראה נקראה אותה טבלה פעמיים.")
+        raise Bad("תעריפי החלוקה והאספקה יצאו זהים.")
     return out
 
 
-# --- פענוח חלופי: כשהטקסט מפורק כך שכל תא בשורה נפרדת, אין שורות טבלה
-#     לעבוד איתן, ולכן מאחדים הכול לרצף אחד וחותכים לפי מספור השורות בלוח.
+# --- פענוח חלופי על רצף אחד: כשהטקסט מפורק כך שכל תא יושב בשורה נפרדת,
+#     אין שורות טבלה לעבוד איתן, ולכן מאחדים הכול וחותכים לפי מספור השורות.
 ROW_RE = re.compile(r'חודשיים\s+((?:' + NUM + r'\s+){3,}' + NUM + ')')
 
 
