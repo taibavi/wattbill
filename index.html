@@ -505,6 +505,9 @@
     <ul class="ab-l">
       <li><b>זה אומדן, לא חשבון רשמי.</b> חשבון חברת החשמל עשוי להיות שונה, למשל בגלל עיגולים, תקופות חיוב והסדרים אישיים.</li>
       <li><b>חלוקה בין תעריפים היא הערכה.</b> כשהתעריף משתנה בין שתי הקריאות, הצריכה מחולקת לפי מספר הימים, בהנחה שהצריכה אחידה לאורך התקופה.</li>
+      <li><b>התעריפים תקפים מ‑1 בינואר 2023 ואילך.</b> כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל
+          (לוחות 5.3-1 ו‑5.4-1) ומול שיעור המע״מ שפרסמה רשות המסים. לתאריכים שלפני 2023 אין באפליקציה נתונים,
+          וחישוב כזה יוצג עם אזהרה.</li>
       <li><b>ערכים המסומנים כ"משוערים"</b> בטבלת התעריפים אינם ערכים מאומתים לאותו תאריך.</li>
     </ul>
   </div>
@@ -539,6 +542,9 @@
 <div id="view-hist" class="hidden">
 
   <div class="card">
+    <div class="note" style="margin-bottom:8px;font-size:12px">📅 <b>תוקף הנתונים: מ‑1 בינואר 2023 ואילך.</b>
+      כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל (לוחות 5.3-1 ו‑5.4-1) ומול פרסום רשות המסים למע״מ.
+      לתאריכים שלפני 2023 אין כאן נתונים, וחישוב לתאריך כזה יוצג עם אזהרה.</div>
     <div class="hint" style="margin-bottom:8px">כל רכיב מנוהל כציר זמן. שורה ירוקה = בתוקף היום. שורה סגולה = ערך משוער שלא אומת לתקופה ההיא.</div>
     <div style="overflow-x:auto"><table class="reg" id="reg-table"></table></div>
   </div>
@@ -622,11 +628,23 @@ const BOOK_0726 = "https://www.gov.il/BlobFolder/generalpage/tarriffbook/he/sefe
 const RSHUT_2026 = "https://www.gov.il/BlobFolder/policy/78206/he/Files_Hachlatot_luhot_tariff_221225.pdf";
 const ANNEX_0726 = "https://www.bezeq.co.il/media/PDF/energy/tarifim.pdf";
 const VAT_SRC  = "https://www.gov.il/BlobFolder/dynamiccollectorresultitem/represent-info-051224-2/he/vat_represent-info-051224-2.pdf";
+const BOOK_0123 = "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_01_ST.pdf";
+const BOOK_0223 = "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_02_ST_UPDATE.pdf";
+const BOOK_0423 = "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/sefertarrif_history_2023_04_ST.pdf";
+const BOOK_0723 = "https://www.gov.il/BlobFolder/generalpage/maagar_tarrifr_histoty/he/Files_General_sefer_tarrif_07_2023.pdf";
+
+/* התאריך המוקדם ביותר שקיימים עבורו תעריפים מאומתים באפליקציה */
+const DATA_FROM = "2023-01-01";
+const DATA_FROM_TXT = "1 בינואר 2023";
 
 const BUILTIN = {
   energy:[
-    { id:"e24a", from:"2024-01-01", to:"2024-01-31", value:0.5252, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024, שלא אומת.", src:BOOK_2024 },
+    { id:"e23a", from:"2023-01-01", to:"2023-01-31", value:0.5342, verified:true, estimated:false,
+      note:"ספר התעריפים 01/2023, לוח 5.3-1 (החלטה 64504 מ‑21.12.2022): תשלום משתנה לצרכן ביתי 53.42 אג׳.", src:BOOK_0123 },
+    { id:"e23b", from:"2023-02-01", to:"2023-03-31", value:0.5261, verified:true, estimated:false,
+      note:"ספר התעריפים 02/2023, לוח 5.3-1 (החלטה 64801 מ‑25.1.2023): תשלום משתנה לצרכן ביתי 52.61 אג׳.", src:BOOK_0223 },
+    { id:"e23c", from:"2023-04-01", to:"2024-01-31", value:0.5134, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2023, לוח 5.3-1 (החלטה 65203 מ‑26.3.2023, בתוקף מ‑01/04/2023): תשלום משתנה לצרכן ביתי 51.34 אג׳. תעריף זה היה בתוקף עד 31/01/2024, ולכן הוא חל גם על ינואר 2024.", src:BOOK_0723 },
     { id:"e24", from:"2024-02-01", to:"2024-12-31", value:0.5252, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.3-1: תשלום משתנה לצרכן ביתי 52.52 אג׳ (בתוקף מ‑01/02/2024).", src:BOOK_2024 },
     { id:"e25", from:"2025-01-01", to:"2025-12-31", value:0.5425, verified:true, estimated:false,
@@ -637,8 +655,8 @@ const BUILTIN = {
       note:"ספר התעריפים 07/2026, לוח 5.3-1: רכיב משתנה לצרכן ביתי 53.83 אג׳ (יצור 31.12 + מערכתי 9.29 + רשת 13.42).", src:BOOK_0726 }
   ],
   fixedA:[
-    { id:"fa24a", from:"2024-01-01", to:"2024-01-31", value:8.85, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024.", src:BOOK_2024 },
+    { id:"fa23", from:"2023-01-01", to:"2024-01-31", value:8.24, verified:true, estimated:false,
+      note:"ספרי התעריפים של 2023, לוח 5.4-1 שורה 7: שירותי צרכנות חלוקה, מונה חד־פאזי, 8.24 ₪ לחודש לפני מע״מ (4.19+2.01+2.03). הערך זהה בכל ספרי 2023 ובתוקף עד 31/01/2024.", src:BOOK_0723 },
     { id:"fa24", from:"2024-02-01", to:"2024-12-31", value:8.85, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.4-1 שורה 7: שירותי צרכנות חלוקה, מונה חד־פאזי.", src:BOOK_2024 },
     { id:"fa25", from:"2025-01-01", to:"2025-12-31", value:9.60, verified:true, estimated:false,
@@ -649,8 +667,8 @@ const BUILTIN = {
       note:"ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות חלוקה, מונה חד־פאזי, 9.97 ₪ לחודש לפני מע״מ.", src:BOOK_0726 }
   ],
   fixedB:[
-    { id:"fb24a", from:"2024-01-01", to:"2024-01-31", value:12.33, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024.", src:BOOK_2024 },
+    { id:"fb23", from:"2023-01-01", to:"2024-01-31", value:11.47, verified:true, estimated:false,
+      note:"ספרי התעריפים של 2023, לוח 5.4-1 שורה 7: שירותי צרכנות אספקה, מונה חד־פאזי, 11.47 ₪ לחודש לפני מע״מ (1.71+4.92+4.84). סה״כ קבוע חד־פאזי ב‑2023: 19.71 ₪.", src:BOOK_0723 },
     { id:"fb24", from:"2024-02-01", to:"2024-12-31", value:12.33, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי.", src:BOOK_2024 },
     { id:"fb25", from:"2025-01-01", to:"2025-12-31", value:13.37, verified:true, estimated:false,
@@ -661,8 +679,8 @@ const BUILTIN = {
       note:"ספר התעריפים 07/2026, לוח 5.4-1: שירותי צרכנות אספקה, מונה חד־פאזי, 15.60 ₪ לחודש לפני מע״מ. סה״כ קבוע חד־פאזי: 25.57 ₪.", src:BOOK_0726 }
   ],
   fixedA3:[
-    { id:"fa3_24a", from:"2024-01-01", to:"2024-01-31", value:10.25, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024.", src:BOOK_2024 },
+    { id:"fa3_23", from:"2023-01-01", to:"2024-01-31", value:9.54, verified:true, estimated:false,
+      note:"ספרי התעריפים של 2023, לוח 5.4-1 שורה 8: שירותי צרכנות חלוקה, מונה תלת־פאזי, 9.54 ₪ לחודש לפני מע״מ (5.50+2.00+2.04).", src:BOOK_0723 },
     { id:"fa3_24", from:"2024-02-01", to:"2024-12-31", value:10.25, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.4-1 שורה 8: חלוקה, מונה תלת־פאזי.", src:BOOK_2024 },
     { id:"fa3_25", from:"2025-01-01", to:"2025-12-31", value:11.12, verified:true, estimated:false,
@@ -673,8 +691,8 @@ const BUILTIN = {
       note:"ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות חלוקה, מונה תלת־פאזי, 11.56 ₪ לחודש לפני מע״מ.", src:BOOK_0726 }
   ],
   fixedB3:[
-    { id:"fb3_24a", from:"2024-01-01", to:"2024-01-31", value:12.26, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024.", src:BOOK_2024 },
+    { id:"fb3_23", from:"2023-01-01", to:"2024-01-31", value:11.42, verified:true, estimated:false,
+      note:"ספרי התעריפים של 2023, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי, 11.42 ₪ לחודש לפני מע״מ (1.70+4.87+4.85). סה״כ קבוע תלת־פאזי ב‑2023: 20.96 ₪.", src:BOOK_0723 },
     { id:"fb3_24", from:"2024-02-01", to:"2024-12-31", value:12.26, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.4-1: אספקה, מונה תלת־פאזי.", src:BOOK_2024 },
     { id:"fb3_25", from:"2025-01-01", to:"2025-12-31", value:13.31, verified:true, estimated:false,
@@ -685,8 +703,10 @@ const BUILTIN = {
       note:"ספר התעריפים 07/2026, לוח 5.4-1 שורה 8: שירותי צרכנות אספקה, מונה תלת־פאזי. סה״כ קבוע תלת־פאזי: 27.09 ₪.", src:BOOK_0726 }
   ],
   capacity:[
-    { id:"c24a", from:"2024-01-01", to:"2024-01-31", value:3.58, verified:false, estimated:true,
-      note:"⚠ ערך 02/2024 כקירוב לינואר 2024.", src:BOOK_2024 },
+    { id:"c23a", from:"2023-01-01", to:"2023-03-31", value:3.39, verified:true, estimated:false,
+      note:"ספרי התעריפים 01/2023 ו‑02/2023, לוח 5.3-1: תשלום קבוע לצרכן ביתי 3.39 ₪ לכל KVA לשנה.", src:BOOK_0123 },
+    { id:"c23b", from:"2023-04-01", to:"2024-01-31", value:3.43, verified:true, estimated:false,
+      note:"ספר התעריפים 07/2023, לוח 5.3-1 (בתוקף מ‑01/04/2023): תשלום קבוע לצרכן ביתי 3.43 ₪ לכל KVA לשנה. בתוקף עד 31/01/2024.", src:BOOK_0723 },
     { id:"c24", from:"2024-02-01", to:"2024-12-31", value:3.58, verified:true, estimated:false,
       note:"ספר התעריפים 07/2024, לוח 5.3-1: תשלום קבוע לצרכן ביתי 3.58 ₪ לכל KVA לשנה.", src:BOOK_2024 },
     { id:"c25", from:"2025-01-01", to:"2025-12-31", value:3.54, verified:true, estimated:false,
@@ -711,6 +731,10 @@ const SOURCES = [
   ["רשות החשמל – החלטה ולוחות תעריפים מ‑1.1.2026 (PDF רשמי)", RSHUT_2026],
   ["רשות החשמל – ספר לוחות התעריפים 07/2026 (PDF רשמי)", BOOK_0726],
   ["רשות החשמל – ספר לוחות התעריפים 07/2024 (PDF רשמי)", BOOK_2024],
+  ["רשות החשמל – ספר לוחות התעריפים 07/2023 (PDF רשמי)", BOOK_0723],
+  ["רשות החשמל – ספר לוחות התעריפים 04/2023 (PDF רשמי)", BOOK_0423],
+  ["רשות החשמל – ספר לוחות התעריפים 02/2023 (PDF רשמי)", BOOK_0223],
+  ["רשות החשמל – ספר לוחות התעריפים 01/2023 (PDF רשמי)", BOOK_0123],
   ["נספח תעריפי חשמל מ‑01/07/2026, כולם לפני מע״מ", ANNEX_0726],
   ["חברת החשמל – תעריף החשמל הביתי","https://www.iec.co.il/content/tariffs/contentpages/homeelectricitytariff"],
   ["מבנה החשבון ודוגמת חישוב (כולל פירוט לפני ואחרי מע״מ)", PROTO_SRC],
@@ -754,7 +778,10 @@ function timeline(key){
 }
 function valueAt(key,date){
   const t=date.getTime(), asc=timeline(key).slice().reverse();
-  return asc.filter(x=> t>=D(x.from).getTime() && (x.to===null||t<=D(x.to).getTime())).pop() || asc[asc.length-1];
+  const hit=asc.filter(x=> t>=D(x.from).getTime() && (x.to===null||t<=D(x.to).getTime())).pop();
+  if(hit) return hit;
+  /* תאריך מחוץ לכיסוי: לפני השורה הראשונה נשתמש בערך הישן ביותר, אחרי האחרונה – בחדש ביותר */
+  return t < D(asc[0].from).getTime() ? asc[0] : asc[asc.length-1];
 }
 function splitPeriod(from,to){
   const out=[]; let cur=new Date(from), g=0;
@@ -1855,7 +1882,11 @@ function recalc(){
   const fixedWarn = fixedNoDays
     ? `<div class="warnbox">ℹ התשלום הקבוע והקיבולת <b>לא נכללו בסה״כ</b>: הם נגבים לפי ימים, ולא הוזן מספר ימים.
        להכללתם – לחץ "שנה ›" והקלד מספר ימים${mode==="meter" ? ", או מלא את תאריכי הקריאות" : ""}.</div>` : "";
-  $("est-warn").innerHTML = splitWarn + fixedWarn + (estHits.size
+  /* כיסוי הנתונים: יש תעריפים מאומתים רק מ‑DATA_FROM ואילך */
+  const coverWarn = from.getTime() < D(DATA_FROM).getTime()
+    ? `<div class="warnbox">⚠ טבלת התעריפים באפליקציה מכסה <b>מ‑${DATA_FROM_TXT} ואילך</b> בלבד.
+       התאריך שנבחר מוקדם יותר, והחישוב נעשה לפי התעריף הישן ביותר שקיים כאן – ולכן אינו מדויק.</div>` : "";
+  $("est-warn").innerHTML = coverWarn + splitWarn + fixedWarn + (estHits.size
     ? `<div class="warnbox">⚠ החישוב משתמש בערכים <b>משוערים</b> ב: ${[...estHits].join(", ")}.
        אין ערך מאומת לתאריכים האלה. אם יש לך את החשבון המקורי – הוסף שורה בטבלת התעריפים.</div>` : "");
 
@@ -1969,7 +2000,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.0", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.1", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
