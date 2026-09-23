@@ -273,7 +273,7 @@ def extract_53(lines):
     cv = nums(lines[fix[0]], 6)
     if len(cv) != len(ev):
         raise Bad("שורת הקיבולת (%d ערכים) אינה תואמת לשורת הצריכה (%d)." % (len(cv), len(ev)))
-    return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 10):i])
+    return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 30):i + 3])
 
 
 PHASE_WORD = {"": "חד", "3": "תלת"}
@@ -656,20 +656,24 @@ def extract_all(texts):
 def effective_date(head, today=None):
     """תאריך התחילה של המהדורה, מתוך כותרת לוח 5.3-1.
 
-    הכותרת מכילה גם את תאריך ההחלטה וגם את תאריך העדכון האחרון; המאוחר
-    מביניהם הוא תאריך התחילה (למשל 21/12/2022 מול 01/01/2023)."""
+    הכותרת מכילה שני סוגי תאריכים: תאריך ההחלטה של רשות החשמל ותאריך התחילה.
+    תעריפים נכנסים לתוקף תמיד ב‑1 בחודש (01/01, 01/02, 01/04, 01/07), ואילו
+    תאריך ההחלטה הוא יום שרירותי – למשל «החלטה מס׳ 72804 מיום 8/12/2025».
+    לכן בוחרים רק מבין התאריכים שהם ה‑1 בחודש: לקחת סתם את המאוחר ביותר החזיר
+    את תאריך ההחלטה, ואז עדכון אמיתי היה נדחה בשקט כ"ישן"."""
     today = today or dt.date.today()
-    cands = []
+    firsts, others = [], []
     for d, mo, y in re.findall(r'\b(\d{1,2})[/.](\d{1,2})[/.](20\d{2})\b', head):
         try:
-            cands.append(dt.date(int(y), int(mo), int(d)))
+            when = dt.date(int(y), int(mo), int(d))
         except ValueError:
-            pass
-    if not cands:
-        # ניחוש של תאריך התחילה מסוכן יותר מכישלון: הוא עלול להדביק ערכים
-        # ישנים לתאריך חדש. עדיף לעצור ולהתריע.
-        fail("לא נמצא תאריך תחילה בכותרת לוח 5.3-1 – לא ניתן לדעת ממתי התעריף בתוקף.")
-    eff = max(cands)
+            continue
+        (firsts if when.day == 1 else others).append(when)
+    if not firsts:
+        fail("לא נמצא תאריך תחילה (ה‑1 בחודש) בכותרת לוח 5.3-1.%s"
+             % (" נמצאו רק תאריכי החלטה: %s." % ", ".join(str(x) for x in sorted(set(others)))
+                if others else ""))
+    eff = max(firsts)
     if eff > today + dt.timedelta(days=400):
         fail("תאריך התחילה שחולץ (%s) רחוק מדי בעתיד – ככל הנראה פענוח שגוי." % eff)
     return eff.isoformat()
@@ -705,8 +709,9 @@ def merge(data, found, src, eff):
         if cur and abs(cur["value"] - val) < 1e-9:
             continue
         if cur and cur["from"] >= eff:
-            log("  «%s»: כבר קיימת שורה מ‑%s, מדלג." % (key, cur["from"]))
-            continue
+            fail("«%s» השתנה (%s → %s) אבל תאריך התחילה שחולץ (%s) אינו מאוחר מהשורה "
+                 "הקיימת (%s). סביר שתאריך התחילה פוענח שגוי – עדיף לעצור מאשר "
+                 "לדלג על עדכון אמיתי בשקט." % (key, cur["value"], val, eff, cur["from"]))
         if cur:
             cur["to"] = (dt.date.fromisoformat(eff) - day).isoformat()
         data["components"].setdefault(key, []).append({
