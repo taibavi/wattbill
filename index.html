@@ -33,6 +33,13 @@
   .drawer>button b{display:block;font-size:13.5px}
   .drawer>button small{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
   .drawer>button.on{border-color:var(--brand);background:#f0fdfa}
+  .ab-h{font-size:17px;font-weight:800;color:var(--brand-d);margin-bottom:6px}
+  .ab-t{font-size:13px;font-weight:800;color:var(--brand-d);margin-bottom:7px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+  .ab{width:100%;border-collapse:collapse;font-size:12.5px}
+  .ab td{padding:6px 2px;border-bottom:1px solid var(--line)}
+  .ab td:first-child{color:var(--muted);width:38%}
+  .ab-l{margin:0;padding-inline-start:17px;font-size:12px;line-height:1.75}
+  .ab-l li{margin-bottom:5px}
   @media(max-width:480px){ .kwh-hero{padding:6px;margin-top:8px} .kwh-hero .n{font-size:22px} }
   /* מסך החישוב: במחשב שני טורים (קלט | תוצאה), בטלפון זה מתחת לזה */
   html,body{overflow-x:hidden}
@@ -274,6 +281,7 @@
       <button id="nav-calc" class="on" onclick="showView('calc')"><span class="i">🧮</span><span><b>חישוב</b><small>חשבון לפי קוט״ש או קריאות מונה</small></span></button>
       <button id="nav-hist" onclick="showView('hist')"><span class="i">📋</span><span><b>טבלת תעריפים</b><small>רכיבי העלות לאורך זמן, והוספת ערכים</small></span></button>
       <button id="nav-train" onclick="showView('train')"><span class="i">🔢</span><span><b>לימוד מונה</b><small>רק אם הזיהוי מתמונה שוגה במונה שלך</small></span></button>
+      <button id="nav-about" onclick="showView('about')"><span class="i">ℹ️</span><span><b>אודות</b><small>גרסה, מקורות הנתונים ופרטיות</small></span></button>
     </nav>
   </div>
 
@@ -437,7 +445,6 @@
 <!-- ==================== לימוד ספרות המונה ==================== -->
 <div id="view-train" class="hidden">
   <div class="card">
-    <div class="step"><div class="txt">לימוד ספרות המונה</div></div>
     <div class="hint" style="margin-bottom:6px">האפליקציה מגיעה עם לימוד מוכן, ורוב המשתמשים לא צריכים את הלשונית הזו.
       היא נועדה למקרה שהמונה שלך נראה אחרת והזיהוי במסך החישוב לא נכון: אז מלמדים את האפליקציה איך נראית כל אחת מהספרות 0–9 במונה שלך.</div>
     <div class="note" id="dm-src" style="margin:0 0 8px">–</div>
@@ -471,11 +478,54 @@
   </div>
 </div>
 
+<!-- ==================== אודות ==================== -->
+<div id="view-about" class="hidden">
+  <div class="card">
+    <div class="ab-h">⚡ חשבון חשמל</div>
+    <div class="hint" style="margin-bottom:10px">חישוב עלות חשמל ביתי בישראל, לפי כמות קוט״ש או לפי שתי קריאות מונה,
+      כולל פענוח הקריאה מתמונה של המונה. הכול רץ בתוך הדפדפן, גם בלי אינטרנט.</div>
+    <table class="ab">
+      <tr><td>גרסה</td><td id="ab-ver">–</td></tr>
+      <tr><td>עודכן</td><td id="ab-date">–</td></tr>
+      <tr><td>פותח על ידי</td><td>אבי טייב</td></tr>
+      <tr><td>קוד המקור</td><td><a href="https://github.com/taibavi/wattbill" target="_blank" rel="noopener">github.com/taibavi/wattbill</a></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="ab-t">מה האפליקציה עושה</div>
+    <ul class="ab-l">
+      <li><b>חישוב הצריכה</b> – לפי כמות קוט״ש, או לפי ההפרש בין שתי קריאות מונה.</li>
+      <li><b>פענוח קריאה מתמונה</b> – השוואה של כל גלגלת לדוגמאות שנלמדו. הקריאה תמיד עוברת אישור שלך לפני שהיא נכנסת לחישוב.</li>
+      <li><b>פירוט החשבון</b> – עלות הצריכה, הנחת ספק, תשלום קבוע ותשלום קיבולת, עם הנוסחה המלאה של כל רכיב.</li>
+      <li><b>טבלת רכיבי עלות מתוארכת</b> – כל רכיב מנוהל כציר זמן, כך שהחישוב נאמן לתעריף שהיה בתוקף בתאריך שנבחר.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="ab-t">מה חשוב לדעת</div>
+    <ul class="ab-l">
+      <li><b>זה אומדן, לא חשבון רשמי.</b> חשבון חברת החשמל עשוי להיות שונה, למשל בגלל עיגולים, תקופות חיוב והסדרים אישיים.</li>
+      <li><b>חלוקה בין תעריפים היא הערכה.</b> כשהתעריף משתנה בין שתי הקריאות, הצריכה מחולקת לפי מספר הימים, בהנחה שהצריכה אחידה לאורך התקופה.</li>
+      <li><b>ערכים המסומנים כ"משוערים"</b> בטבלת התעריפים אינם ערכים מאומתים לאותו תאריך.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="ab-t">פרטיות</div>
+    <ul class="ab-l">
+      <li>התמונות של המונה <b>לא נשלחות לשום מקום</b>. הפענוח נעשה במכשיר עצמו.</li>
+      <li>הקריאות, ההגדרות והספרות שנלמדו נשמרים <b>רק בדפדפן שלך</b>, ואפשר למחוק אותם בכל רגע במסך ההגדרות ובלשונית הלימוד.</li>
+      <li>האפליקציה לא דורשת הרשמה ולא אוספת מידע על השימוש.</li>
+    </ul>
+    <div class="src" id="sources-about" style="margin-top:10px"></div>
+  </div>
+</div>
+
 <!-- ==================== טבלת התעריפים ==================== -->
 <div id="view-hist" class="hidden">
 
   <div class="card">
-    <div class="step"><div class="txt">טבלת רכיבי העלות</div></div>
     <div class="hint" style="margin-bottom:8px">כל רכיב מנוהל כציר זמן. שורה ירוקה = בתוקף היום. שורה סגולה = ערך משוער שלא אומת לתקופה ההיא.</div>
     <div style="overflow-x:auto"><table class="reg" id="reg-table"></table></div>
   </div>
@@ -1799,10 +1849,12 @@ function showView(v){
   $("view-calc").classList.toggle("hidden",v!=="calc");
   $("view-hist").classList.toggle("hidden",v!=="hist");
   $("view-train").classList.toggle("hidden",v!=="train");
+  $("view-about").classList.toggle("hidden",v!=="about");
   $("nav-calc").classList.toggle("on",v==="calc");
   $("nav-hist").classList.toggle("on",v==="hist");
   $("nav-train").classList.toggle("on",v==="train");
-  $("view-title").textContent = { calc:"חישוב", hist:"טבלת תעריפים", train:"לימוד מונה" }[v];
+  $("nav-about").classList.toggle("on",v==="about");
+  $("view-title").textContent = { calc:"חישוב", hist:"טבלת רכיבי העלות", train:"לימוד ספרות המונה", about:"אודות" }[v];
   if(!$("menu").classList.contains("hidden")) toggleMenu();
   $("sticky").style.display = v==="calc" ? "" : "none";
   window.scrollTo({top:0,behavior:"smooth"});
@@ -1813,6 +1865,8 @@ function toggleMenu(){
   document.body.style.overflow = open ? "hidden" : "";
 }
 document.addEventListener("keydown", e => { if(e.key==="Escape" && !$("menu").classList.contains("hidden")) toggleMenu(); });
+/* גרסה ותאריך עדכון – מוצגים במסך אודות */
+const APP_VERSION = "1.0", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
@@ -1839,7 +1893,11 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   $("add-comp").onchange=()=>{ const c=COMP[$("add-comp").value]; $("add-unit").textContent=`יחידה: ${c.unit} · ${c.role}`; };
   $("add-comp").onchange();
   $("add-from").value=iso(today);
-  $("sources").innerHTML=SOURCES.map(([n,u])=>`• ${n}<br><a href="${u}" target="_blank" rel="noopener">${u}</a>`).join("<br>");
+  const srcHtml = SOURCES.map(([n,u])=>`• ${n}<br><a href="${u}" target="_blank" rel="noopener">${u}</a>`).join("<br>");
+  $("sources").innerHTML = srcHtml;
+  $("sources-about").innerHTML = "<b>מקורות התעריפים:</b><br>" + srcHtml;
+  $("ab-ver").textContent = APP_VERSION;
+  $("ab-date").textContent = heb(APP_DATE);
   checkEnv();
   DM.status();
   refreshAll();
