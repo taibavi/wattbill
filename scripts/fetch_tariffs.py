@@ -261,30 +261,25 @@ def extract_53(lines):
     return {"energy": round(ev[idx] / 100.0, 6), "capacity": cv[idx]}, " ".join(lines[max(0, i - 10):i])
 
 
-def region_54(lines):
-    """גבולות לוח 5.4-1 בתוך המסמך.
+def regions_54(lines):
+    """כל המועמדים לגבולות לוח 5.4-1, לפי סדר הופעתם.
 
-    לא כל מהדורה נותנת כותרת נפרדת לטבלת האספקה – בנספחי ההחלטות היא פשוט
-    ממשיכה אחרי טבלת החלוקה. לכן מגדירים אזור אחד, ומבדילים בין שתי הטבלאות
-    לפי סדר השורות: הופעה ראשונה = חלוקה, שנייה = אספקה."""
-    start = None
+    ההופעה הראשונה של הכותרת היא כמעט תמיד בתוכן העניינים ולא בלוח עצמו,
+    ולכן מחזירים את כל המועמדים והקורא בוחר את זה שיש בו שורות חיוב אמיתיות."""
+    out = []
     for i, l in enumerate(lines):
-        if "5.4" in l and "תשלום קבוע" in l and "5.4.1" not in l:
-            start = i
-            break
-    if start is None:
-        for i, l in enumerate(lines):
-            if "צרכנות" in l and "חלוקה" in l:
-                start = i
+        if not (("5.4" in l and "תשלום קבוע" in l and "5.4.1" not in l)
+                or ("צרכנות" in l and "חלוקה" in l)):
+            continue
+        end = len(lines)
+        for j in range(i + 3, len(lines)):
+            if "5.4.1" in lines[j] or re.search(r'2\s*-\s*5\.4|5\.4\s*[–-]\s*:?\s*2', lines[j]):
+                end = j
                 break
-    if start is None:
+        out.append((i, end))
+    if not out:
         raise Bad("לא נמצאה תחילת לוח 5.4-1.")
-    end = len(lines)
-    for i in range(start + 1, len(lines)):
-        if "5.4.1" in lines[i] or re.search(r'2\s*-\s*5\.4|5\.4\s*[–-]\s*:?\s*2', lines[i]):
-            end = i
-            break
-    return start, end
+    return out
 
 
 def phase_hits(lines, lo, hi):
@@ -310,17 +305,26 @@ def extract_54(lines):
 
     התיאור של שורה יכול לשבת כמה שורות מעל או מתחת למספרים שלה (ובספר 07/2026
     אפילו בעמוד הבא), ולכן משייכים כל תיאור לשורת המספרים הקרובה אליו."""
-    lo, hi = region_54(lines)
-    rows = []
-    for i in range(lo, hi):
-        v = nums(lines[i], 8)
-        if len(v) >= 4:
-            t = row_total(v)
-            if t is not None:
-                rows.append((i, t))
-    if len(rows) < 4:
-        raise Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב תקינות." % len(rows))
+    last = None
+    for lo, hi in regions_54(lines):
+        rows = []
+        for i in range(lo, hi):
+            v = nums(lines[i], 8)
+            if len(v) >= 4:
+                t = row_total(v)
+                if t is not None:
+                    rows.append((i, t))
+        if len(rows) < 4:
+            last = Bad("בלוח 5.4-1 נמצאו רק %d שורות חיוב תקינות." % len(rows))
+            continue                        # ככל הנראה תוכן העניינים, לא הלוח
+        try:
+            return rows_to_values(lines, lo, hi, rows)
+        except Bad as e:
+            last = e
+    raise last
 
+
+def rows_to_values(lines, lo, hi, rows):
     hits = phase_hits(lines, lo, hi)
     out = {}
     for suffix in ("", "3"):
@@ -529,7 +533,7 @@ def parse_free(text):
             continue
         if hits[suffix] and pos - hits[suffix][-1] < 40:
             continue
-        if not [r for r in usable if abs(r[0] - pos) <= 400]:
+        if not [r for r in usable if abs(r[0] - pos) <= 700]:
             continue
         hits[suffix].append(pos)
     for suffix, phase in (("", "חד"), ("3", "תלת")):
