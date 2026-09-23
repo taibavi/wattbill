@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>WattBill IL – מחשבון חשבון חשמל</title>
+<title>חשבון חשמל – חישוב לפי קריאות מונה</title>
 <style>
   :root{
     --bg:#eef2f5; --card:#fff; --ink:#1f2d3d; --muted:#6b7a8c; --line:#e2e8f0;
@@ -44,6 +44,9 @@
   .seg2{display:grid;grid-template-columns:1fr 1fr;background:#f1f5f9;border-radius:10px;padding:3px;gap:3px;margin-bottom:11px}
   .seg2 button{padding:10px 4px;font-size:13px;background:none;border:none;color:var(--muted);border-radius:8px}
   .seg2 button.on{background:#fff;color:var(--brand-d);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+  /* המספר עצמו משמאל לימין, אבל ההנחיה בעברית – מימין, כל עוד השדה ריק */
+  .big-in:placeholder-shown,.mf .box input:placeholder-shown,#man-prev:placeholder-shown,#man-curr:placeholder-shown
+    {direction:rtl;text-align:right}
   .big-in{font-size:22px!important;font-weight:700;padding:11px!important;direction:ltr;text-align:left;width:100%;min-width:0}
   .mf-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
   .mf{min-width:0}
@@ -260,14 +263,14 @@
 
   <div class="topbar">
     <button class="hb" onclick="toggleMenu()" aria-label="תפריט" aria-expanded="false" id="hb-btn">☰</button>
-    <b>⚡ WattBill IL</b>
+    <b>⚡ חשבון חשמל</b>
     <span class="vt" id="view-title">חישוב</span>
   </div>
 
   <!-- תפריט צדדי: המסכים המשניים, שנכנסים אליהם לעיתים רחוקות -->
   <div class="menu hidden" id="menu" onclick="if(event.target===this) toggleMenu()">
     <nav class="drawer">
-      <div class="drawer-h"><b>⚡ WattBill IL</b><button onclick="toggleMenu()" aria-label="סגור">✕</button></div>
+      <div class="drawer-h"><b>⚡ חשבון חשמל</b><button onclick="toggleMenu()" aria-label="סגור">✕</button></div>
       <button id="nav-calc" class="on" onclick="showView('calc')"><span class="i">🧮</span><span><b>חישוב</b><small>חשבון לפי קוט״ש או קריאות מונה</small></span></button>
       <button id="nav-hist" onclick="showView('hist')"><span class="i">📋</span><span><b>טבלת תעריפים</b><small>רכיבי העלות לאורך זמן, והוספת ערכים</small></span></button>
       <button id="nav-train" onclick="showView('train')"><span class="i">🔢</span><span><b>לימוד מונה</b><small>רק אם הזיהוי מתמונה שוגה במונה שלך</small></span></button>
