@@ -1770,7 +1770,13 @@ function setMode(m){
   $("sec-kwh").classList.toggle("hidden",m!=="kwh"); $("sec-meter").classList.toggle("hidden",m!=="meter");
   recalc();
 }
-function kvaOf(){ const ph=Number($("phases").value),a=Number($("amps").value); return ph===1?a*0.23:a*0.69; }
+/* גודל החיבור בקילו‑וולט‑אמפר, כפי שחברת החשמל מחשבת אותו בחשבון:
+   חד־פאזי  = 230V × אמפר          (40A → 9.20 KVA)
+   תלת־פאזי = √3 × 400V × אמפר     (3×25A → 17.32 KVA)
+   המקדם 0.69 שהיה כאן קודם נתן 17.25 במקום 17.32, ופער של 7 אגורות בקיבולת. */
+const KVA_1PH = 0.230, KVA_3PH = Math.sqrt(3) * 0.400;
+function kvaOf(){ const ph=Number($("phases").value),a=Number($("amps").value);
+  return a * (ph===1 ? KVA_1PH : KVA_3PH); }
 function getKwh(){
   if(mode==="kwh") return {kwh:parseFloat($("kwh-direct").value)||0,ok:true,msg:""};
   const p=readings.prev,c=readings.curr;
@@ -1913,7 +1919,14 @@ function recalc(){
        אין ערך מאומת לתאריכים האלה. אם יש לך את החשבון המקורי – הוסף שורה בטבלת התעריפים.</div>` : "");
 
   const uF = withFixed && incF, uC = withFixed && incC;
-  const totEx=(eEx-dEx)+(uF?fEx:0)+(uC?cEx:0), totVat=(eVat-dVat)+(uF?fVat:0)+(uC?cVat:0), tot=totEx+totVat;
+  /* חברת החשמל מעגלת כל רכיב לאגורות ורק אז מסכמת (434.65 + 15.27 + 50.63 = 500.55).
+     סכימה של ערכים מדויקים ועיגול בסוף נותנת 500.56 – אגורה מעל החשבון האמיתי.
+     לכן מעגלים כאן כל רכיב בנפרד, כדי שהתוצאה תהיה זהה לחשבון. */
+  const r2 = x => Math.round(x * 100) / 100;
+  const eNet = r2(eEx - dEx), fNet = r2(uF ? fEx : 0), cNet = r2(uC ? cEx : 0);
+  const totEx = r2(eNet + fNet + cNet);
+  const totVat = r2((eVat - dVat) + (uF ? fVat : 0) + (uC ? cVat : 0));
+  const tot = r2(totEx + totVat);
   $("total-big").textContent=nis(tot);
   $("total-sub").textContent=`${kwh.toFixed(1)} קוט״ש`+(days?` · ${days} ימים`:"")+(discPct?` · הנחה ${discPct}%`:"");
   $("t-ex").textContent=nis(totEx); $("t-vat").textContent=nis(totVat); $("t-inc").textContent=nis(tot);
@@ -2022,7 +2035,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.3", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.4", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
