@@ -1814,7 +1814,14 @@ function getPeriod(){
   const today=iso(new Date());
   if(mode==="meter"){
     const a=$("date-prev").value, b=$("date-curr").value;
-    if(a && b && a!==b) return { from:D(a), to:D(b), kind:"derived" };
+    /* חברת החשמל מחייבת מהיום שאחרי הקריאה הקודמת: יום הקריאה עצמו כבר חויב
+       בחשבון הקודם. חשבון לדוגמה: קריאות 24/05 ו‑21/07 → "תקופה מ‑25/05 עד
+       21/07", 58 ימים. ספירה כוללת של שני התאריכים נותנת 59 ויום עודף בכל
+       הרכיבים היומיים. */
+    if(a && b && a!==b){
+      const st=new Date(D(a).getTime()+DAY);
+      return { from:st, to:D(b), kind:"derived", prevRead:a };
+    }
     /* תאריך חסר, או שני תאריכים זהים (שתי קריאות שונות לא נלקחות באותו יום – כנראה תאריך שמירת הקבצים) */
     const r=$("d-ref").value||today, n=parseInt($("m-days").value);
     return { from:D(r), to:D(r), kind:"meter-ref", mdays: n>0 ? n : null, sameDay: !!(a && b && a===b) };
@@ -1845,8 +1852,9 @@ function recalc(){
   const days = mref ? (per.mdays||0) : Math.round((to-from)/DAY)+1;
 
   if(per.kind==="derived")
-    $("derived-note").innerHTML = `התקופה נלקחת מתאריכי שתי הקריאות: <b>${heb(iso(from))}</b> עד <b>${heb(iso(to))}</b>.
-      ${fixedOn ? "התשלום הקבוע והקיבולת מחושבים לפי מספר הימים שביניהן." : ""}
+    $("derived-note").innerHTML = `התקופה נספרת מהיום שאחרי הקריאה הקודמת (${heb(per.prevRead)}) –
+      כלומר <b>${heb(iso(from))}</b> עד <b>${heb(iso(to))}</b> – בדיוק כפי שחברת החשמל מחייבת.
+      ${fixedOn ? "התשלום הקבוע והקיבולת מחושבים לפי מספר הימים האלה." : ""}
       אם התעריף השתנה בתקופה, הצריכה מתחלקת לפי מספר הימים – אומדן שמניח צריכה אחידה.
       לשינוי – ערוך את תאריכי הקריאות כאן למעלה.`;
 
@@ -1855,7 +1863,8 @@ function recalc(){
     : mref
     ? `${per.sameDay ? "לשתי הקריאות הוזן אותו תאריך, וזה לא יכול להיות מועד הקריאה של שתיהן" : "לא ידועים תאריכים לשתי הקריאות"}, ולכן אין תקופה: כל הצריכה מחושבת לפי התעריף שהיה בתוקף ב‑<b>${heb(iso(from))}</b>.
        אם התעריף השתנה בין הקריאות, אין דרך לפצל את הצריכה בלי תאריכים. להוספת תקופה – מלא את שני תאריכי הקריאות כאן למעלה.`
-    : `${days} ימים · ${heb(iso(from))} עד ${heb(iso(to))} (כולל שני התאריכים)`;
+    : `${days} ימים · ${heb(iso(from))} עד ${heb(iso(to))}` +
+      (per.prevRead ? ` · נספר מהיום שאחרי הקריאה הקודמת (${heb(per.prevRead)}), כמו בחשבון` : "");
   $("kva-note").textContent=`קיבולת: ${kvaOf().toFixed(2)} KVA`;
 
 
@@ -1966,7 +1975,7 @@ function recalc(){
   $("t-ex").textContent=nis(totEx); $("t-vat").textContent=nis(totVat); $("t-inc").textContent=nis(tot);
   /* סיכום מהיר: עלות הצריכה לבד מול הכל, כולל מע״מ */
   const energyInc=(eEx-dEx)+(eVat-dVat);
-  $("r-energy").textContent=nis(eEx+eVat);
+  $("r-energy").textContent=nis(r2(eEx)+r2(eVat));
   /* ההנחה חלה על הצריכה לפני מע״מ, ולכן מקטינה גם את המע״מ עליה – כמות החיסכון = הצריכה כולל מע״מ × אחוז */
   const discSave=(eEx+eVat)*discVal/100;
   $("rr-disc").classList.toggle("off", !incD || !discVal);
@@ -1978,7 +1987,7 @@ function recalc(){
     $(val).textContent = withFixed ? (inc ? "+" : "") + nis(amount) : "נדרש מספר ימים ›";
     $(val).onclick = withFixed ? null : () => { if($("settings").classList.contains("hidden")) toggleSettings(); $("m-days").focus(); };
   };
-  dailyRow("rr-fixed","r-fixed",incF,fEx+fVat); dailyRow("rr-cap","r-cap",incC,cEx+cVat);
+  dailyRow("rr-fixed","r-fixed",incF,r2(fEx)+r2(fVat)); dailyRow("rr-cap","r-cap",incC,r2(cEx)+r2(cVat));
   $("s-energy").textContent=nis(energyInc); $("s-total").textContent=nis(tot);
   /* שורת ההגדרות המקוצרת */
   const ph = $("phases").value==="1" ? "חד־פאזי" : "תלת־פאזי";
@@ -2069,7 +2078,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.5", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.6", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
