@@ -1113,8 +1113,13 @@ function initDateField(id){
   nat.parentNode.insertBefore(wrap,nat);
   const txt=document.createElement("input");
   txt.type="text"; txt.className="dttext"; txt.id=id+"-txt";
-  txt.placeholder="יום/חודש/שנה"; txt.inputMode="numeric"; txt.autocomplete="off";
-  txt.setAttribute("aria-label", "תאריך בפורמט יום/חודש/שנה");
+  /* השדה מוגדר משמאל לימין (כי תוכנו ספרות), ומחרוזת עברית בתוכו מתהפכת:
+     "יום/חודש/שנה" היה מוצג כ‑"שנה/חודש/יום", כלומר השנה בקצה שבו מקלידים את
+     היום. סימני LRM (\u200e) בין המילים מקבעים את הסדר, כך שהמילה "יום" יושבת
+     בדיוק מעל המקום שבו מוקלד היום. */
+  txt.placeholder="יום\u200e/\u200eחודש\u200e/\u200eשנה";
+  txt.inputMode="numeric"; txt.autocomplete="off";
+  txt.setAttribute("aria-label", "תאריך: יום, חודש, שנה");
   const icon=document.createElement("span"); icon.className="dticon"; icon.textContent="📅";
   wrap.appendChild(txt); wrap.appendChild(nat); nat.classList.add("dtnative");
   wrap.appendChild(icon);
@@ -2136,7 +2141,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.7", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.8", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
