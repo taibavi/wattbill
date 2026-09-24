@@ -198,6 +198,9 @@
   .audit{border-radius:9px;padding:9px;margin-bottom:9px;font-size:11.5px;line-height:1.65}
   .audit.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
   .audit.bad{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  .midbox{margin-top:9px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:9px;padding:10px}
+  .midbox input{width:100%;border:1.5px solid #5eead4;border-radius:8px;padding:9px;font-size:17px;
+    font-weight:700;direction:ltr;text-align:left;background:#fff}
   .warnbox{background:var(--est-bg);border:1px solid #d8b4fe;border-radius:8px;padding:9px;
            font-size:11px;color:var(--est);line-height:1.6;margin-bottom:9px}
   .envwarn{background:#fef2f2;border:2px solid var(--err);color:#991b1b;border-radius:10px;
@@ -371,13 +374,6 @@
           <div class="hint">נדרש רק לתשלום הקבוע ולקיבולת, שנגבים לפי ימים.</div>
         </div>
       </div>
-      <div id="dt-range" class="hidden">
-        <div class="row">
-          <div class="fld"><label for="d-from">מתאריך</label><input type="date" id="d-from"></div>
-          <div class="fld"><label for="d-to">עד תאריך</label><input type="date" id="d-to"></div>
-        </div>
-        <div class="hint">התשלום הקבוע והקיבולת מחושבים לפי מספר הימים.</div>
-      </div>
       <div id="dt-derived" class="hidden"><div class="note" id="derived-note" style="margin:0">–</div></div>
       <div class="hint" id="days-note" style="margin-top:6px">–</div>
 
@@ -423,6 +419,11 @@
     </div>
     <div class="hidden"><span id="t-ex"></span><span id="t-inc"></span></div>
     <div class="hint" style="margin-top:6px">כל הסכומים כוללים מע״מ. סמן או בטל רכיב כדי לראות איך הוא משפיע על הסה״כ.</div>
+    <div id="mid-box" class="hidden midbox">
+      <div class="q" id="mid-lbl" style="margin-bottom:6px">–</div>
+      <input type="number" id="mid-val" inputmode="numeric" placeholder="קריאת המונה בתאריך הזה" oninput="recalc()">
+      <div class="hint" id="mid-note" style="margin-top:5px">–</div>
+    </div>
     <div id="est-warn" style="margin-top:8px"></div>
     <details id="det-break" style="margin-top:8px">
       <summary>📄 פירוט מלא – כל רכיב ונוסחה, עם ובלי מע״מ</summary>
@@ -1102,11 +1103,14 @@ function readTiff(dv,base){
   if(u16(base+2)!==0x002A) return null;
   const scan = ptr => {
     if(ptr+2>dv.byteLength) return {};
-    const n=u16(ptr); let date=null, exifPtr=null;
+    const n=u16(ptr); let date=null, exifPtr=null, cam=false;
     for(let i=0;i<n;i++){
       const e=ptr+2+i*12; if(e+12>dv.byteLength) break;
       const tag=u16(e), type=u16(e+2), cnt=u32(e+4);
       if(tag===0x8769) exifPtr = base+u32(e+8);
+      /* תגיות שקיימות רק בצילום ממצלמה אמיתית: זמן חשיפה, צמצם, ISO, אורך מוקד.
+         צילום מסך לעולם לא מכיל אותן, וזה מה שמבדיל בין השניים. */
+      if(tag===0x829A||tag===0x829D||tag===0x8827||tag===0x920A) cam=true;
       if((tag===0x9003||tag===0x9004||tag===0x0132) && type===2 && cnt>=11){
         const vo = cnt>4 ? base+u32(e+8) : e+8;
         let s="";
@@ -1114,7 +1118,7 @@ function readTiff(dv,base){
         if(/^\d{4}:\d{2}:\d{2}/.test(s) && (!date||tag===0x9003)) date=s;
       }
     }
-    return {date,exifPtr};
+    return {date,exifPtr,cam};
   };
   const r0=scan(base+u32(base+4));
   const r1=r0.exifPtr?scan(r0.exifPtr):{};
@@ -1123,7 +1127,7 @@ function readTiff(dv,base){
   const [Y,M,Dd]=raw.slice(0,10).split(":");
   const y=+Y,mo=+M,dd=+Dd;
   if(y<2000||y>2100||mo<1||mo>12||dd<1||dd>31) return null;
-  return `${Y}-${M}-${Dd}`;
+  return { date:`${Y}-${M}-${Dd}`, camera: !!(r0.cam||r1.cam) };
 }
 function readExifDate(file){
   return new Promise(res=>{
@@ -1139,14 +1143,22 @@ function dateEdited(key){ dateManual[key]=true; $("dnote-"+key).textContent="ת�
 /* תאריך מהקובץ הוא הצעה בלבד: נמצא שבצילומי מסך באנדרואיד השדה DateTimeOriginal מכיל את מועד צילום המסך,
    ולא את מועד צילום המונה – ולכן הוא לא נכנס לחישוב בלי אישור של המשתמש */
 async function applyExif(file,key){
-  const d = await readExifDate(file);
+  const ex = await readExifDate(file);
   const note=$("dnote-"+key);
-  if(d){
-    note.innerHTML = `📷 בקובץ רשום התאריך <b>${heb(d)}</b>. בצילום מסך זה מועד צילום המסך ולא מועד הקריאה.
-      <a href="#" onclick="useExif('${key}','${d}');return false;">השתמש בתאריך הזה</a>`;
-  } else {
+  if(!ex){
     note.textContent = "בקובץ אין תאריך צילום. אם ידוע לך מתי נלקחה הקריאה – הזן אותו כאן.";
+    return;
   }
+  if(ex.camera && !dateManual[key]){
+    /* צילום ממצלמה: התאריך בקובץ הוא מועד הצילום בפועל, ולכן נכנס מיד */
+    $("date-"+key).value = ex.date;
+    note.innerHTML = `📷 צילום מצלמה מ‑<b>${heb(ex.date)}</b> – התאריך מולא אוטומטית. לשינוי, ערוך את השדה שמעל.`;
+    recalc();
+    return;
+  }
+  note.innerHTML = `📷 בקובץ רשום התאריך <b>${heb(ex.date)}</b>. ${ex.camera ? "כבר הזנת תאריך ידנית."
+      : "זה אינו צילום מצלמה – בצילום מסך זהו מועד צילום המסך ולא מועד הקריאה."}
+    <a href="#" onclick="useExif('${key}','${ex.date}');return false;">השתמש בתאריך הזה</a>`;
 }
 function useExif(key,d){ $("date-"+key).value=d; dateManual[key]=false;
   $("dnote-"+key).innerHTML=`📷 התאריך נלקח מנתוני הצילום: <b>${heb(d)}</b>`; recalc(); }
@@ -1817,14 +1829,12 @@ function recalc(){
   const per=getPeriod(), from=per.from, to=per.to;
 
   const mref = per.kind==="meter-ref";
-  $("dt-single").classList.toggle("hidden", per.kind!=="single" && !mref);
+  $("dt-single").classList.toggle("hidden", !mref);
   $("dt-mdays").classList.toggle("hidden", !mref);
-  $("dt-range").classList.toggle("hidden",  per.kind!=="range");
   $("dt-derived").classList.toggle("hidden",per.kind!=="derived");
   $("dt-mdates").classList.toggle("hidden", mode!=="meter");
   $("m-days-lbl").textContent = mode==="meter" ? "כמה ימים עברו בין הקריאות? (לא חובה)" : "כמה ימים כולל החשבון? (לא חובה)";
-  $("dt-title").textContent = per.kind==="single" || mref ? "תאריך החישוב"
-                            : per.kind==="derived" ? "התקופה – נגזרת מהקריאות" : "תקופת החיוב";
+  $("dt-title").textContent = mref ? "תאריך החישוב" : "התקופה – נגזרת מהקריאות";
 
   if(to<from){
     $("days-note").textContent = per.kind==="derived"
@@ -1840,9 +1850,7 @@ function recalc(){
       אם התעריף השתנה בתקופה, הצריכה מתחלקת לפי מספר הימים – אומדן שמניח צריכה אחידה.
       לשינוי – ערוך את תאריכי הקריאות כאן למעלה.`;
 
-  $("days-note").innerHTML = per.kind==="single"
-    ? `חישוב לפי התעריף שהיה בתוקף ב‑${heb(iso(from))}`
-    : mref && mode==="kwh"
+  $("days-note").innerHTML = mref && mode==="kwh"
     ? `כל הצריכה מחושבת לפי התעריף שהיה בתוקף ב‑<b>${heb(iso(from))}</b>.`
     : mref
     ? `${per.sameDay ? "לשתי הקריאות הוזן אותו תאריך, וזה לא יכול להיות מועד הקריאה של שתיהן" : "לא ידועים תאריכים לשתי הקריאות"}, ולכן אין תקופה: כל הצריכה מחושבת לפי התעריף שהיה בתוקף ב‑<b>${heb(iso(from))}</b>.
@@ -1878,15 +1886,41 @@ function recalc(){
   let eEx=0,eVat=0,dEx=0,dVat=0,fEx=0,fVat=0,cEx=0,cVat=0;
   const eRows=[],fNotes=[],cNotes=[],estHits=new Set();
 
-  segs.forEach(s=>{
+  /* קריאת אמצע: כששינוי תעריף נופל בתוך התקופה, חלוקה לפי ימים היא אומדן.
+     אם ידועה קריאת המונה בתאריך השינוי, אפשר לחלק לפי מדידה ולא לפי הנחה. */
+  const canMid = per.kind==="derived" && segs.length===2 && mode==="meter"
+                 && readings.prev.confirmed && readings.curr.confirmed;
+  let exShares=null;
+  $("mid-box").classList.toggle("hidden", !canMid);
+  if(canMid){
+    const bDate=iso(segs[1].from), f=parseFloat($("meter-factor").value)||1;
+    const p0=readings.prev.value, p1=readings.curr.value, mv=$("mid-val").value.trim();
+    const m=parseFloat(mv);
+    $("mid-lbl").textContent = `התעריף השתנה ב‑${heb(bDate)}. ידועה לך קריאת המונה מאותו יום?`;
+    if(mv==="" ){
+      $("mid-note").textContent = `לא חובה. בלי הקריאה הזו הצריכה מחולקת בין שני התעריפים לפי מספר הימים – אומדן שמניח צריכה אחידה.`;
+    } else if(!isFinite(m) || m<=p0 || m>=p1){
+      $("mid-note").innerHTML = `<b style="color:#b91c1c">הקריאה חייבת להיות בין ${p0} ל‑${p1}.</b> כרגע החישוב לפי ימים.`;
+    } else {
+      exShares=[(m-p0)*f,(p1-m)*f];
+      $("mid-note").innerHTML = `✓ חלוקה מדויקת: <b>${exShares[0].toFixed(0)}</b> קוט״ש לפני השינוי ו‑<b>${exShares[1].toFixed(0)}</b> אחריו.`;
+    }
+  }
+
+  segs.forEach((s,si)=>{
     const p=s.picks,vr=p.vat.value;
     COMPONENTS.forEach(c=>{ if(p[c.key].estimated) estHits.add(c.name); });
-    const share = mref ? kwh : kwh*(s.days/days), ex=share*p.energy.value, v=ex*vr;
+    /* החשבון מעגל כל שורת צריכה בנפרד (278.00 + 156.65 = 434.65). מחקים אותו רק
+       כשידועה הכמות האמיתית לכל תקופה – כלומר כשהוזנה קריאת אמצע. בחלוקה לפי
+       ימים הכמות ממילא שבר (510.98), ועיגול כל שורה רק היה מוסיף שגיאה. */
+    const share = exShares ? exShares[si] : mref ? kwh : kwh*(s.days/days);
+    const raw = share*p.energy.value, ex = exShares ? Math.round(raw*100)/100 : raw, v=ex*vr;
     eEx+=ex; eVat+=v;
     const dx=ex*discPct/100; dEx+=dx; dVat+=dx*vr;
     eRows.push(line(`צריכה · ${heb(iso(s.from))}–${heb(iso(s.to))}`,
       `תעריף בתוקף: <code>${ag(p.energy.value)}</code> (מ‑${heb(p.energy.from)})${p.energy.estimated?' ⚠משוער':''}<br>
-       ${mref ? `כל הצריכה לפי התעריף בתאריך הייחוס = ${share.toFixed(1)} kWh`
+       ${exShares ? `לפי קריאת האמצע שהוזנה = ${share.toFixed(1)} kWh (מדידה, לא אומדן)`
+              : mref ? `כל הצריכה לפי התעריף בתאריך הייחוס = ${share.toFixed(1)} kWh`
               : segs.length>1 ? `חלק יחסי לפי ימים <code>${s.days}/${days}</code> = ${share.toFixed(1)} kWh (אומדן: מניח צריכה אחידה)`
               : `${share.toFixed(1)} kWh`}<br>
        <code>${share.toFixed(1)} × ${ag(p.energy.value)}</code> = ${nis(ex)} לפני מע״מ<br>
@@ -1904,7 +1938,7 @@ function recalc(){
     }
   });
 
-  const splitWarn = per.kind==="derived" && segs.length>1
+  const splitWarn = (per.kind==="derived" && segs.length>1 && !exShares)
     ? `<div class="warnbox">ℹ התעריף השתנה בין שתי הקריאות. הצריכה חולקה בין התעריפים לפי מספר הימים בכל חלק –
        זה <b>אומדן</b> שמניח צריכה אחידה לאורך התקופה, לא מדידה.</div>` : "";
   const fixedWarn = fixedNoDays
@@ -1948,7 +1982,7 @@ function recalc(){
   $("s-energy").textContent=nis(energyInc); $("s-total").textContent=nis(tot);
   /* שורת ההגדרות המקוצרת */
   const ph = $("phases").value==="1" ? "חד־פאזי" : "תלת־פאזי";
-  const when = per.kind==="derived" || per.kind==="range" ? `תקופה ${heb(iso(from))}–${heb(iso(to))} (${days} ימים)`
+  const when = per.kind==="derived" ? `תקופה ${heb(iso(from))}–${heb(iso(to))} (${days} ימים)`
              : `תעריף לפי ${heb(iso(from))}` + (mref && per.mdays ? ` · ${per.mdays} ימים` : "");
   $("set-sum").innerHTML = `${when} · ${ph} ${$("amps").value}A`;
 
@@ -2035,14 +2069,12 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.4", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.5", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
   $("meter-curr-block").innerHTML=meterBlockHTML("curr","קריאה נוכחית");
   const today=new Date(), back=new Date(today.getTime()-60*DAY);
-  $("d-from").value=load("from",iso(back));
-  $("d-to").value=load("to",iso(today));
   $("d-ref").value=iso(today);
   $("train-block").innerHTML=trainBlockHTML();
   const st=load("set",null);
@@ -2055,7 +2087,6 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   if("IntersectionObserver" in window)
     new IntersectionObserver(es => $("sticky").classList.toggle("show", !es[0].isIntersecting), {threshold:0.15}).observe($("res-card"));
   /* תאריכי הקריאות נשארים ריקים: הם נמלאים מהצילום או ידנית, ולא מומצאים */
-  ["d-from","d-to"].forEach(id=>$(id).addEventListener("change",()=>{ save(id==="d-from"?"from":"to",$(id).value); recalc(); }));
   $("d-ref").addEventListener("change",recalc);
   $("add-comp").innerHTML=COMPONENTS.map(c=>`<option value="${c.key}">${c.name}</option>`).join("");
   $("add-comp").onchange=()=>{ const c=COMP[$("add-comp").value]; $("add-unit").textContent=`יחידה: ${c.unit} · ${c.role}`; };
