@@ -198,6 +198,18 @@
   .audit{border-radius:9px;padding:9px;margin-bottom:9px;font-size:11.5px;line-height:1.65}
   .audit.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
   .audit.bad{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
+  /* שדה תאריך בפורמט יום/חודש/שנה. שדה type="date" מובנה מוצג לפי שפת הדפדפן
+     (mm/dd/yyyy בדפדפן אנגלי) ואין דרך לכפות עליו פורמט – גם lang על האלמנט
+     לא עוזר. לכן: שדה טקסט שאנחנו שולטים בו, ומעליו שדה תאריך שקוף שנלחץ
+     כדי לפתוח את לוח השנה המקורי, כולל בטלפון. */
+  .dtwrap{position:relative;display:block}
+  .dtwrap>input.dttext{width:100%;border:1.5px solid #cbd5e1;border-radius:9px;padding:9px 9px 9px 38px;
+    font-size:15px;font-weight:600;direction:ltr;text-align:left;background:#fff;color:var(--ink)}
+  .dtwrap>input.dttext:focus{outline:2px solid var(--brand);outline-offset:-1px}
+  .dtwrap>input.dtnative{position:absolute;left:0;top:0;width:36px;height:100%;opacity:0;
+    cursor:pointer;padding:0;border:0;margin:0}
+  .dtwrap>.dticon{position:absolute;left:10px;top:50%;transform:translateY(-50%);
+    font-size:15px;pointer-events:none;opacity:.55}
   .midbox{margin-top:9px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:9px;padding:10px}
   .midbox input{width:100%;border:1.5px solid #5eead4;border-radius:8px;padding:9px;font-size:17px;
     font-weight:700;direction:ltr;text-align:left;background:#fff}
@@ -1078,6 +1090,52 @@ function trainLearn(){
   if(ok) $("gate-train").classList.add("done");
 }
 
+
+/* ---------- שדה תאריך בפורמט יום/חודש/שנה ---------- */
+function dmy(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v||"") ? v.split("-").reverse().join("/") : ""; }
+function parseDmy(t){
+  const m=/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec((t||"").trim());
+  if(!m) return "";
+  let [,d,mo,y]=m; if(y.length===2) y="20"+y;
+  d=+d; mo=+mo; const yy=+y;
+  if(mo<1||mo>12||d<1||d>31||yy<2000||yy>2100) return "";
+  const dt=new Date(yy,mo-1,d);
+  if(dt.getFullYear()!==yy||dt.getMonth()!==mo-1||dt.getDate()!==d) return "";   /* 31/02 וכדומה */
+  return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+/* קביעת ערך מהקוד: מעדכנת גם את שדה הטקסט */
+function setDate(id,iso){ const n=$(id); if(!n) return; n.value=iso||""; const t=$(id+"-txt"); if(t) t.value=dmy(iso); }
+
+function initDateField(id){
+  const nat=$(id); if(!nat || nat.dataset.dmy) return;
+  nat.dataset.dmy="1";
+  const wrap=document.createElement("div"); wrap.className="dtwrap";
+  nat.parentNode.insertBefore(wrap,nat);
+  const txt=document.createElement("input");
+  txt.type="text"; txt.className="dttext"; txt.id=id+"-txt";
+  txt.placeholder="יום/חודש/שנה"; txt.inputMode="numeric"; txt.autocomplete="off";
+  txt.setAttribute("aria-label", "תאריך בפורמט יום/חודש/שנה");
+  const icon=document.createElement("span"); icon.className="dticon"; icon.textContent="📅";
+  wrap.appendChild(txt); wrap.appendChild(nat); nat.classList.add("dtnative");
+  wrap.appendChild(icon);
+  txt.value=dmy(nat.value);
+
+  const fire=()=>{ nat.dispatchEvent(new Event("change",{bubbles:true})); };
+  txt.addEventListener("input",()=>{
+    /* הקלדה רציפה של ספרות: הקווים הנטויים נוספים לבד */
+    const digits=txt.value.replace(/\D/g,"").slice(0,8);
+    let out=digits.slice(0,2);
+    if(digits.length>2) out+="/"+digits.slice(2,4);
+    if(digits.length>4) out+="/"+digits.slice(4,8);
+    if(/^[\d/]*$/.test(txt.value)) txt.value=out;
+    const iso=parseDmy(txt.value);
+    txt.style.borderColor = txt.value==="" || iso ? "" : "#ef4444";
+    if(iso!==nat.value){ nat.value=iso; fire(); }
+  });
+  txt.addEventListener("blur",()=>{ if(txt.value && !parseDmy(txt.value)){ txt.value=dmy(nat.value); txt.style.borderColor=""; } });
+  nat.addEventListener("input",()=>{ txt.value=dmy(nat.value); txt.style.borderColor=""; });
+}
+
 /* ---------- חילוץ תאריך הצילום מתוך נתוני ה‑EXIF של התמונה ---------- */
 function parseExifDate(dv){
   if(dv.byteLength<4 || dv.getUint16(0)!==0xFFD8) return null;      /* לא JPEG */
@@ -1151,7 +1209,7 @@ async function applyExif(file,key){
   }
   if(ex.camera && !dateManual[key]){
     /* צילום ממצלמה: התאריך בקובץ הוא מועד הצילום בפועל, ולכן נכנס מיד */
-    $("date-"+key).value = ex.date;
+    setDate("date-"+key, ex.date);
     note.innerHTML = `📷 צילום מצלמה מ‑<b>${heb(ex.date)}</b> – התאריך מולא אוטומטית. לשינוי, ערוך את השדה שמעל.`;
     recalc();
     return;
@@ -1160,7 +1218,7 @@ async function applyExif(file,key){
       : "זה אינו צילום מצלמה – בצילום מסך זהו מועד צילום המסך ולא מועד הקריאה."}
     <a href="#" onclick="useExif('${key}','${ex.date}');return false;">השתמש בתאריך הזה</a>`;
 }
-function useExif(key,d){ $("date-"+key).value=d; dateManual[key]=false;
+function useExif(key,d){ setDate("date-"+key,d); dateManual[key]=false;
   $("dnote-"+key).innerHTML=`📷 התאריך נלקח מנתוני הצילום: <b>${heb(d)}</b>`; recalc(); }
 
 /* ---------- מצלמה חיה: לא עוברת דרך בורר הקבצים של המערכת ---------- */
@@ -1205,7 +1263,7 @@ function snapLive(){
     f.__live=true;
     loadImage(f,key);
     if(key==="train") return;
-    $("date-"+key).value = iso(new Date());
+    setDate("date-"+key, iso(new Date()));
     $("dnote-"+key).innerHTML = `🎥 צולם עכשיו – התאריך נקבע להיום (${heb(iso(new Date()))}).`;
     recalc();
   },"image/jpeg",0.92);
@@ -2078,13 +2136,14 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "1.6", APP_DATE = "2026-09-23";
+const APP_VERSION = "1.7", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
   $("meter-curr-block").innerHTML=meterBlockHTML("curr","קריאה נוכחית");
   const today=new Date(), back=new Date(today.getTime()-60*DAY);
-  $("d-ref").value=iso(today);
+  ["d-ref","date-prev","date-curr","add-from"].forEach(initDateField);
+  setDate("d-ref", iso(today));
   $("train-block").innerHTML=trainBlockHTML();
   const st=load("set",null);
   if(st){ $("inc-f").checked = st.incF ?? st.fixed ?? true; $("inc-c").checked = st.incC ?? st.fixed ?? true;
@@ -2100,7 +2159,7 @@ function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
   $("add-comp").innerHTML=COMPONENTS.map(c=>`<option value="${c.key}">${c.name}</option>`).join("");
   $("add-comp").onchange=()=>{ const c=COMP[$("add-comp").value]; $("add-unit").textContent=`יחידה: ${c.unit} · ${c.role}`; };
   $("add-comp").onchange();
-  $("add-from").value=iso(today);
+  setDate("add-from", iso(today));
   const srcHtml = SOURCES.map(([n,u])=>`• ${n}<br><a href="${u}" target="_blank" rel="noopener">${u}</a>`).join("<br>");
   $("sources").innerHTML = srcHtml;
   $("sources-about").innerHTML = "<b>מקורות התעריפים:</b><br>" + srcHtml;
