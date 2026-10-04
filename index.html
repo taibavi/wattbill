@@ -445,8 +445,10 @@
       <summary>🔎 הערכים שהיו בתוקף</summary>
       <div id="snapshot" style="margin-top:8px"></div>
     </details>
-    <div style="margin-top:8px"><span class="pill" id="sync-pill">בודק…</span>
-      <span class="hint" style="display:inline"> מצב בדיקת התעריפים</span></div>
+    <div style="margin-top:10px">
+      <div class="hint" style="margin-bottom:3px">מצב בדיקת התעריפים</div>
+      <span class="pill" id="sync-pill">בודק…</span>
+    </div>
   </div>
   </div>
 
@@ -910,11 +912,13 @@ const Sync = {
   say(m){ this.lines.push(m); const l=$("sync-log"); if(l){ l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; } },
   pill(c,t){ const p=$("sync-pill"); p.className="pill "+c; p.textContent=t; },
   stamp(){
-    if(!REMOTE) return "טבלה מוטמעת";
+    if(!REMOTE) return "טבלה מוטמעת בקוד";
     /* מועד האימות מול ספר התעריפים – כפי שנרשם בשרת, ולא מתי המכשיר הזה משך
        את הקובץ. זה מה שבאמת מעניין: מתי מישהו בדק מול המקור הרשמי. */
     const at=(REMOTE.lastCheck && REMOTE.lastCheck.at || "").slice(0,10);
-    return "תעריפים מ‑"+heb(REMOTE.updated||"")+(at?" · אומתו מול המקור "+heb(at):"");
+    /* "עודכנה" מתייחס לטבלה, לא לתעריף: ‏23/09 הוא מועד עדכון הטבלה אצלנו,
+       בעוד שתעריף הצריכה עצמו בתוקף מ‑01/07. הניסוח הקודם בלבל בין השניים. */
+    return "הטבלה עודכנה "+heb(REMOTE.updated||"")+(at?" · אומתה מול המקור "+heb(at):"");
   },
   /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
   async refresh(manual){
@@ -936,7 +940,7 @@ const Sync = {
       const bad=validData(d);
       if(bad){
         this.say("  ✗ קובץ הנתונים נדחה: "+bad);
-        this.pill("err","קובץ נתונים פגום");
+        this.pill("err","קובץ הנתונים נדחה – ממשיכים עם העותק השמור");
       }else{
         const fresh = !REMOTE || JSON.stringify(REMOTE)!==JSON.stringify(d);
         REMOTE=d; save("remote",d);
@@ -947,7 +951,7 @@ const Sync = {
       }
     }else{
       this.say("  ✗ לא ניתן למשוך את קובץ הנתונים ("+err+").");
-      this.pill(REMOTE?"local":"local", REMOTE?this.stamp()+" · לא מקוון":"טבלה מוטמעת");
+      this.pill("local", REMOTE?this.stamp()+" · ללא רשת":"טבלה מוטמעת בקוד");
     }
     renderRegistry(a.flagged);
   },
@@ -2167,7 +2171,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.0", APP_DATE = "2026-09-23";
+const APP_VERSION = "2.1", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
