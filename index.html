@@ -446,8 +446,8 @@
       <div id="snapshot" style="margin-top:8px"></div>
     </details>
     <div style="margin-top:10px">
-      <div class="hint" style="margin-bottom:3px">מצב בדיקת התעריפים</div>
       <span class="pill" id="sync-pill">בודק…</span>
+      <div class="hint" id="sync-note" style="margin-top:4px">–</div>
     </div>
   </div>
   </div>
@@ -911,14 +911,26 @@ const Sync = {
   lines:[],
   say(m){ this.lines.push(m); const l=$("sync-log"); if(l){ l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; } },
   pill(c,t){ const p=$("sync-pill"); p.className="pill "+c; p.textContent=t; },
-  stamp(){
-    if(!REMOTE) return "טבלה מוטמעת בקוד";
-    /* מועד האימות מול ספר התעריפים – כפי שנרשם בשרת, ולא מתי המכשיר הזה משך
-       את הקובץ. זה מה שבאמת מעניין: מתי מישהו בדק מול המקור הרשמי. */
+  /* מה שמעניין את המשתמש הוא "האם התעריפים שלפיהם חישבו לי עדכניים", ולא
+     מתי קובץ פנימי השתנה. לכן המחוון מדבר על מועד הבדיקה מול רשות החשמל,
+     והמשפט שמתחתיו מסביר שהמעקב אוטומטי ושבועי. */
+  STALE_DAYS: 21,
+  status(){
+    if(!REMOTE) return {cls:"local", text:"טבלת תעריפים מובנית באפליקציה"};
     const at=(REMOTE.lastCheck && REMOTE.lastCheck.at || "").slice(0,10);
-    /* "עודכנה" מתייחס לטבלה, לא לתעריף: ‏23/09 הוא מועד עדכון הטבלה אצלנו,
-       בעוד שתעריף הצריכה עצמו בתוקף מ‑01/07. הניסוח הקודם בלבל בין השניים. */
-    return "הטבלה עודכנה "+heb(REMOTE.updated||"")+(at?" · אומתה מול המקור "+heb(at):"");
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(at)) return {cls:"local", text:"הבדיקה השבועית טרם רצה"};
+    const days = Math.round((Date.now()-D(at).getTime())/DAY);
+    if(days > this.STALE_DAYS)
+      return {cls:"local", text:`נבדק לאחרונה ב‑${heb(at)} · הבדיקה השבועית לא רצה מאז`};
+    return {cls:"live", text:`✓ נבדק מול רשות החשמל · ${heb(at)}`};
+  },
+  showStatus(suffix){
+    const st=this.status();
+    this.pill(st.cls, st.text + (suffix||""));
+    const e=valueAt("energy", new Date());
+    $("sync-note").textContent =
+      `התעריפים נבדקים אוטומטית אחת לשבוע מול ספר התעריפים של רשות החשמל. ` +
+      `תעריף הצריכה הנוכחי בתוקף מ‑${heb(e.from)}.`;
   },
   /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
   async refresh(manual){
@@ -945,13 +957,13 @@ const Sync = {
         const fresh = !REMOTE || JSON.stringify(REMOTE)!==JSON.stringify(d);
         REMOTE=d; save("remote",d);
         this.say(fresh?"  ✓ נמשכו תעריפים מעודכנים ל‑"+heb(d.updated||""):"  ✓ אין שינוי.");
-        this.pill("live",this.stamp());
+        this.showStatus();
         if(fresh) refreshAll(); else renderRegistry(auditAll().flagged);
         return;
       }
     }else{
       this.say("  ✗ לא ניתן למשוך את קובץ הנתונים ("+err+").");
-      this.pill("local", REMOTE?this.stamp()+" · ללא רשת":"טבלה מוטמעת בקוד");
+      this.showStatus(REMOTE ? " · ללא רשת" : "");
     }
     renderRegistry(a.flagged);
   },
@@ -2171,7 +2183,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.1", APP_DATE = "2026-09-23";
+const APP_VERSION = "2.2", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
