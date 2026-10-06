@@ -630,9 +630,10 @@
       <summary>🔍 בדיקת תקינות וסנכרון</summary>
       <div class="hint" style="margin:8px 0">התעריפים מתעדכנים מעצמם. פעם ביום נבדק ספר לוחות
         התעריפים של רשות החשמל, ואם יצא עדכון הוא נכנס לאפליקציה בפתיחה הבאה – בלי שתצטרך לעשות דבר.
-        הכפתור כאן נועד רק לבדיקה מיידית.</div>
+        <br>הכפתור <b>מושך מיד את הטבלה העדכנית</b> ובודק את תקינותה, במקום להמתין לפתיחה הבאה.
+        הוא אינו מקדים את הבדיקה מול רשות החשמל עצמה – זו רצה פעם ביום ברקע.</div>
       <div id="audit-box" class="audit ok" style="margin-top:8px">בודק…</div>
-      <button class="btn-ghost" style="width:100%" onclick="Sync.runAll()">🔄 בדוק עכשיו</button>
+      <button class="btn-ghost" style="width:100%" onclick="Sync.runAll()">🔄 משוך עכשיו את הטבלה העדכנית</button>
       <div class="log" id="sync-log"></div>
     </details>
   </div>
@@ -937,11 +938,15 @@ const Sync = {
     const st=this.status();
     this.pill(st.cls, st.text + (suffix||""));
     const e=valueAt("energy", new Date()), n=this.nextCheck();
+    /* חלון ולא שעה מדויקת, כי ההרצה המתוזמנת עשויה להידחות. מציגים אותו מעוגל
+       לחצאי שעה – למשתמש אין עניין בדקה המדויקת ולא בסיבה הטכנית לעיכוב. */
+    const r=(d,up)=>{ const x=new Date(d), m=x.getMinutes();
+      x.setMinutes(up ? (m>30?60:30) : (m>=30?30:0), 0, 0); return x; };
     const hm=d=>d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
-    const to=new Date(n.getTime()+this.DELAY_H*3600e3);
+    const from=r(n,false), to=r(new Date(n.getTime()+this.DELAY_H*3600e3),true);
     $("sync-note").innerHTML =
       `התעריפים נבדקים אוטומטית <b>פעם ביום</b> מול ספר התעריפים של רשות החשמל. ` +
-      `הבדיקה הבאה: <b>${heb(iso(n))}</b> (${hm(n)}–${hm(to)} – GitHub עשוי לעכב הרצות מתוזמנות).` +
+      `הבדיקה הבאה: <b>${heb(iso(n))}</b>, בין ${hm(from)} ל‑${hm(to)}.` +
       `<br>תעריף הצריכה הנוכחי בתוקף מ‑${heb(e.from)}.`;
   },
   /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
@@ -2195,7 +2200,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.3", APP_DATE = "2026-09-23";
+const APP_VERSION = "2.4", APP_DATE = "2026-09-23";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
