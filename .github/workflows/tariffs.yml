@@ -1,4 +1,4 @@
-# בדיקה שבועית של ספר לוחות התעריפים של רשות החשמל.
+# בדיקה יומית של ספר לוחות התעריפים של רשות החשמל.
 # אם יצא עדכון – data/tariffs.json מתעדכן ונדחף אוטומטית, והאפליקציה
 # מקבלת אותו בפתיחה הבאה בלי שהמשתמש עושה דבר.
 # אם הפענוח נכשל או שהערכים לא הגיוניים – שום דבר לא משתנה, וההרצה נכשלת
@@ -8,7 +8,10 @@ name: עדכון תעריפים
 
 on:
   schedule:
-    - cron: "17 4 * * 1"        # כל יום שני, 04:17 UTC
+    # כל יום ב‑03:23 UTC. GitHub מתעד שהרצות מתוזמנות נדחות בעומס ואף נזרקות,
+    # ולכן יומי במקום שבועי: החמצה בודדת כבר לא יוצרת פער של שבוע.
+    # הדקה אינה עגולה בכוונה – תחילת כל שעה היא זמן העומס.
+    - cron: "23 3 * * *"
   workflow_dispatch:
     inputs:
       url:
@@ -35,12 +38,22 @@ jobs:
             ${{ inputs.url && format('--url {0}', inputs.url) || '' }}
 
       - name: דחיפת העדכון
-        if: steps.fetch.outputs.changed == 'true'
         run: |
           git config user.name  "wattbill-tariff-bot"
-          git config user.email "noreply@anthropic.com"
+          git config user.email "noreply@github.com"
           git add data/tariffs.json
-          git commit -m "עדכון תעריפים אוטומטי: ${{ steps.fetch.outputs.summary }}"
+          if git diff --staged --quiet; then
+            echo "אין שינוי בקובץ – אין מה לדחוף."
+            exit 0
+          fi
+          if [ "${{ steps.fetch.outputs.changed }}" = "true" ]; then
+            MSG="עדכון תעריפים אוטומטי: ${{ steps.fetch.outputs.summary }}"
+          else
+            # פעימת לב יומית. חוץ מהוכחת חיים בריפו, היא מאפסת את ספירת
+            # 60 הימים שאחריה GitHub מכבה אוטומטית workflow מתוזמן בריפו ציבורי.
+            MSG="בדיקת תעריפים: אין שינוי ($(date -u +%d/%m/%Y))"
+          fi
+          git commit -m "$MSG"
           git push
 
       - name: סיכום
