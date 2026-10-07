@@ -919,11 +919,22 @@ const Sync = {
   CHECK_UTC: {h:3, m:23},
   DELAY_H: 6,            /* GitHub מעכב הרצות מתוזמנות, אף פעם לא מקדים אותן */
   STALE_DAYS: 5,
+  checkedOn(){                       /* התאריך המקומי של הבדיקה האחרונה שנרשמה */
+    const at = REMOTE && REMOTE.lastCheck && REMOTE.lastCheck.at;
+    const d = at ? new Date(at) : null;
+    return d && !isNaN(d) ? iso(d) : null;
+  },
   nextCheck(){
-    const now=new Date(), d=new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(),
-      now.getUTCDate(), this.CHECK_UTC.h, this.CHECK_UTC.m));
-    if(d<=now) d.setUTCDate(d.getUTCDate()+1);
-    return d;
+    const now=new Date();
+    const slot = n => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(),
+      now.getUTCDate()+n, this.CHECK_UTC.h, this.CHECK_UTC.m));
+    const today = slot(0);
+    /* השעה המתוזמנת אינה "המועד", אלא תחילת חלון. כל עוד החלון של היום לא
+       נסגר ולא נרשמה בדיקה היום – הבדיקה הבאה היא עדיין של היום, גם אם
+       השעה המדויקת כבר חלפה. אחרת הוצג "מחר" בזמן שהבדיקה בדרך. */
+    if(this.checkedOn()!==iso(now) && now < new Date(today.getTime()+this.DELAY_H*3600e3))
+      return today;
+    return slot(1);
   },
   status(){
     if(!REMOTE) return {cls:"local", text:"טבלת תעריפים מובנית באפליקציה"};
@@ -944,9 +955,11 @@ const Sync = {
       x.setMinutes(up ? (m>30?60:30) : (m>=30?30:0), 0, 0); return x; };
     const hm=d=>d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
     const from=r(n,false), to=r(new Date(n.getTime()+this.DELAY_H*3600e3),true);
+    const t0=iso(new Date()), t1=iso(new Date(Date.now()+DAY));
+    const when = iso(n)===t0 ? "היום" : iso(n)===t1 ? "מחר" : heb(iso(n));
     $("sync-note").innerHTML =
       `התעריפים נבדקים אוטומטית <b>פעם ביום</b> מול ספר התעריפים של רשות החשמל. ` +
-      `<br>הבדיקה הבאה: <b>${heb(iso(n))}</b>, בין ${hm(from)} ל‑${hm(to)}.`;
+      `<br>הבדיקה הבאה: <b>${when}</b>, בין ${hm(from)} ל‑${hm(to)}.`;
   },
   /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
   async refresh(manual){
@@ -2199,7 +2212,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.6", APP_DATE = "2026-09-23";
+const APP_VERSION = "2.7", APP_DATE = "2026-10-07";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
