@@ -534,7 +534,7 @@
       <li><b>התעריפים תקפים מ‑1 בינואר 2023 ואילך.</b> כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל
           (לוחות 5.3-1 ו‑5.4-1) ומול שיעור המע״מ שפרסמה רשות המסים. לתאריכים שלפני 2023 אין באפליקציה נתונים,
           וחישוב כזה יוצג עם אזהרה.</li>
-      <li><b>העדכון אוטומטי.</b> פעם ביום נבדק ספר לוחות התעריפים העדכני של רשות החשמל, והערכים
+      <li><b>העדכון אוטומטי.</b> כמה פעמים ביום נבדק ספר לוחות התעריפים העדכני של רשות החשמל, והערכים
           שהשתנו נכנסים לאפליקציה לבד. אם הפענוח אינו חד־משמעי, הנתון הישן נשאר במקומו ולא מוחלף
           בניחוש – עדיף ערך ישן ונכון מערך חדש ושגוי.</li>
       <li><b>ערכים המסומנים כ"משוערים"</b> בטבלת התעריפים אינם ערכים מאומתים לאותו תאריך.</li>
@@ -600,7 +600,7 @@
     <div class="note" style="margin-bottom:8px;font-size:12px">📅 <b>תוקף הנתונים: מ‑1 בינואר 2023 ואילך.</b>
       כל הערכים בטבלה אומתו מול ספרי לוחות התעריפים של רשות החשמל (לוחות 5.3-1 ו‑5.4-1) ומול פרסום רשות המסים למע״מ.
       לתאריכים שלפני 2023 אין כאן נתונים, וחישוב לתאריך כזה יוצג עם אזהרה.
-      <br>🔄 <b>הטבלה מתעדכנת מעצמה.</b> פעם ביום נבדק ספר התעריפים העדכני, ואם יצא עדכון הוא נכנס
+      <br>🔄 <b>הטבלה מתעדכנת מעצמה.</b> ספר התעריפים העדכני נבדק כמה פעמים ביום, ואם יצא עדכון הוא נכנס
       לאפליקציה לבד. שורה שהתקבלה כך מסומנת «עודכן אוטומטית».</div>
     <div class="hint" style="margin-bottom:8px">כל רכיב מנוהל כציר זמן. שורה ירוקה = בתוקף היום. שורה סגולה = ערך משוער שלא אומת לתקופה ההיא.</div>
     <div style="overflow-x:auto"><table class="reg" id="reg-table"></table></div>
@@ -628,10 +628,10 @@
   <div class="card">
     <details>
       <summary>🔍 בדיקת תקינות וסנכרון</summary>
-      <div class="hint" style="margin:8px 0">התעריפים מתעדכנים מעצמם. פעם ביום נבדק ספר לוחות
-        התעריפים של רשות החשמל, ואם יצא עדכון הוא נכנס לאפליקציה בפתיחה הבאה – בלי שתצטרך לעשות דבר.
+      <div class="hint" style="margin:8px 0">התעריפים מתעדכנים מעצמם. ספר לוחות התעריפים של רשות
+        החשמל נבדק כמה פעמים ביום, ואם יצא עדכון הוא נכנס לאפליקציה בפתיחה הבאה – בלי שתצטרך לעשות דבר.
         <br>הכפתור <b>מושך מיד את הטבלה העדכנית</b> ובודק את תקינותה, במקום להמתין לפתיחה הבאה.
-        הוא אינו מקדים את הבדיקה מול רשות החשמל עצמה – זו רצה פעם ביום ברקע.</div>
+        הוא אינו מקדים את הבדיקה מול רשות החשמל עצמה – זו רצה ברקע, בשרת.</div>
       <div id="audit-box" class="audit ok" style="margin-top:8px">בודק…</div>
       <button class="btn-ghost" style="width:100%" onclick="Sync.runAll()">🔄 משוך עכשיו את הטבלה העדכנית</button>
       <div class="log" id="sync-log"></div>
@@ -890,7 +890,7 @@ function renderAudit(){
    4. סנכרון
    ========================================================================= */
 /* הסנכרון עצמו לא רץ כאן. דפדפן לא יכול למשוך מ‑gov.il (אין CORS), ולכן
-   הבדיקה מול ספר התעריפים רצה פעם ביום ב‑GitHub Actions ומעדכנת את
+   הבדיקה מול ספר התעריפים רצה בשרת, כמה פעמים ביום, ומעדכנת את
    data/tariffs.json שלצד האפליקציה. כאן רק מושכים את הקובץ הזה – אותו מקור,
    בלי CORS – ושומרים עותק מקומי כדי שהאפליקציה תעבוד גם בלי רשת. */
 const DATA_URL = "./data/tariffs.json";
@@ -913,53 +913,47 @@ const Sync = {
   say(m){ this.lines.push(m); const l=$("sync-log"); if(l){ l.textContent=this.lines.join("\n"); l.scrollTop=l.scrollHeight; } },
   pill(c,t){ const p=$("sync-pill"); p.className="pill "+c; p.textContent=t; },
   /* מה שמעניין את המשתמש הוא "האם התעריפים שלפיהם חישבו לי עדכניים", ולא
-     מתי קובץ פנימי השתנה. לכן המחוון מדבר על מועד הבדיקה מול רשות החשמל,
-     והמשפט שמתחתיו מסביר שהמעקב אוטומטי ויומי, ומתי הבדיקה הבאה. */
-  /* חייב להתאים ל‑cron שבקובץ .github/workflows/tariffs.yml */
-  CHECK_UTC: {h:3, m:23},
-  DELAY_H: 6,            /* GitHub מעכב הרצות מתוזמנות, אף פעם לא מקדים אותן */
-  STALE_DAYS: 5,
-  checkedOn(){                       /* התאריך המקומי של הבדיקה האחרונה שנרשמה */
-    const at = REMOTE && REMOTE.lastCheck && REMOTE.lastCheck.at;
-    const d = at ? new Date(at) : null;
-    return d && !isNaN(d) ? iso(d) : null;
-  },
-  nextCheck(){
-    const now=new Date();
-    const slot = n => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(),
-      now.getUTCDate()+n, this.CHECK_UTC.h, this.CHECK_UTC.m));
-    const today = slot(0);
-    /* השעה המתוזמנת אינה "המועד", אלא תחילת חלון. כל עוד החלון של היום לא
-       נסגר ולא נרשמה בדיקה היום – הבדיקה הבאה היא עדיין של היום, גם אם
-       השעה המדויקת כבר חלפה. אחרת הוצג "מחר" בזמן שהבדיקה בדרך. */
-    if(this.checkedOn()!==iso(now) && now < new Date(today.getTime()+this.DELAY_H*3600e3))
-      return today;
-    return slot(1);
+     מתי קובץ פנימי השתנה. לכן המחוון מדבר על מועד הבדיקה מול רשות החשמל.
+
+     אין כאן הבטחה למועד הבדיקה הבאה, בכוונה. הבדיקה רצה על תשתית חיצונית
+     שאינה מתחייבת להריץ משימה מתוזמנת – לא בשעה מסוימת ולא בכלל – וב‑07/10/2026
+     יום שלם נפל בלי שנוצרה בכלל רשומת הרצה. הצגת "הבדיקה הבאה: היום, בין X ל‑Y"
+     הייתה הבטחה שאיננו יכולים לקיים. לכן מוצג רק מה שידוע בוודאות – מתי נבדק
+     לאחרונה – ואזהרה כשהגיל חורג. היתירות (כמה מועדים ביום) נמצאת בצד השרת,
+     בקובץ .github/workflows/tariffs.yml, ולא דורשת שהאפליקציה תכיר את השעות. */
+  STALE_DAYS: 3,        /* יש כמה הרצות ביום, ולכן שלושה ימים הם כבר תקלה */
+  checked(){            /* מועד הבדיקה האחרונה, לפי השעון המקומי של המשתמש */
+    const raw = REMOTE && REMOTE.lastCheck && REMOTE.lastCheck.at;
+    const d = raw ? new Date(raw) : null;
+    if(!d || isNaN(d)) return null;
+    const at = iso(d);
+    return { at, days: Math.round((D(iso(new Date())).getTime() - D(at).getTime()) / DAY) };
   },
   status(){
     if(!REMOTE) return {cls:"local", text:"טבלת תעריפים מובנית באפליקציה"};
-    const at=(REMOTE.lastCheck && REMOTE.lastCheck.at || "").slice(0,10);
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(at)) return {cls:"local", text:"הבדיקה האוטומטית טרם רצה"};
-    const days = Math.round((Date.now()-D(at).getTime())/DAY);
-    if(days > this.STALE_DAYS)
-      return {cls:"local", text:`נבדק לאחרונה ב‑${heb(at)} · הבדיקה היומית לא רצה מאז`};
-    return {cls:"live", text:`✓ נבדק מול רשות החשמל · ${heb(at)}`};
+    const c=this.checked();
+    if(!c) return {cls:"local", text:"הבדיקה האוטומטית טרם רצה"};
+    if(c.days > this.STALE_DAYS)
+      return {cls:"local", text:`נבדק לאחרונה ב‑${heb(c.at)} · העדכון האוטומטי לא רץ מאז`};
+    return {cls:"live", text:`✓ נבדק מול רשות החשמל · ${heb(c.at)}`};
   },
   showStatus(suffix){
     const st=this.status();
     this.pill(st.cls, st.text + (suffix||""));
-    const n=this.nextCheck();
-    /* חלון ולא שעה מדויקת, כי ההרצה המתוזמנת עשויה להידחות. מציגים אותו מעוגל
-       לחצאי שעה – למשתמש אין עניין בדקה המדויקת ולא בסיבה הטכנית לעיכוב. */
-    const r=(d,up)=>{ const x=new Date(d), m=x.getMinutes();
-      x.setMinutes(up ? (m>30?60:30) : (m>=30?30:0), 0, 0); return x; };
-    const hm=d=>d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"});
-    const from=r(n,false), to=r(new Date(n.getTime()+this.DELAY_H*3600e3),true);
-    const t0=iso(new Date()), t1=iso(new Date(Date.now()+DAY));
-    const when = iso(n)===t0 ? "היום" : iso(n)===t1 ? "מחר" : heb(iso(n));
+    const c=this.checked();
+    /* "לפני 2 ימים" אינו עברית. צורת הזוגי היא מילה, לא מספר. */
+    const ago = n => n===2 ? "לפני יומיים" : `לפני ${n} ימים`;
+    let when;
+    if(!c)                       when = "הבדיקה האוטומטית טרם רצה, והחישוב נשען על הטבלה השמורה באפליקציה.";
+    else if(c.days <= 0)         when = "הבדיקה האחרונה הושלמה <b>היום</b>.";
+    else if(c.days === 1)        when = "הבדיקה האחרונה הושלמה <b>אתמול</b>.";
+    else if(c.days <= this.STALE_DAYS)
+                                 when = `הבדיקה האחרונה הושלמה <b>${ago(c.days)}</b>.`;
+    else                         when = `הבדיקה האחרונה הושלמה <b>${ago(c.days)}</b> – יותר מהרגיל. ` +
+                                        `כדאי לאמת את התעריפים מול רשות החשמל לפני הסתמכות על התוצאה.`;
     $("sync-note").innerHTML =
-      `התעריפים נבדקים אוטומטית <b>פעם ביום</b> מול ספר התעריפים של רשות החשמל. ` +
-      `<br>הבדיקה הבאה: <b>${when}</b>, בין ${hm(from)} ל‑${hm(to)}.`;
+      `התעריפים נבדקים אוטומטית, כמה פעמים ביום, מול ספר התעריפים של רשות החשמל.` +
+      `<br>${when}`;
   },
   /* רצה בכל פתיחה, בשקט. המשתמש לא נדרש לאשר כלום. */
   async refresh(manual){
@@ -2212,7 +2206,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.7", APP_DATE = "2026-10-07";
+const APP_VERSION = "2.8", APP_DATE = "2026-10-07";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
