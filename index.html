@@ -803,6 +803,11 @@ const D   = s => { const [y,m,d]=s.split("-").map(Number); return new Date(y,m-1
 const iso = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const heb = s => s ? s.split("-").reverse().join("/") : "היום";
 const DAY = 86400000;
+/* הוספת ימים לפי לוח שנה, לא לפי מילישניות. יום אינו תמיד 24 שעות: ביום המעבר
+   לשעון חורף (25/10/2026) הוא נמשך 25 שעות, וחצות מקומית + 24 שעות נופל ב‑23:00
+   של אותו תאריך. חיסור ימים להפרש (Math.round(.../DAY)) בטוח, כי העיגול סופג את
+   השעה, אבל הזזת תאריך קדימה או אחורה חייבת לעבור כאן. */
+const addDays = (d,n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
 function fmtVal(k,v){ const f=COMP[k].fmt; return f==="ag"?ag(v):f==="pct"?pct(v):nis(v); }
 function toggle(id){ $(id).classList.toggle("hidden"); }
 function load(k,d){ try{ const v=localStorage.getItem("wb_"+k); return v===null?d:JSON.parse(v);}catch(e){return d;} }
@@ -824,7 +829,7 @@ function timeline(key){
   for(let i=0;i<rows.length-1;i++){
     const nf=D(rows[i+1].from);
     if(rows[i].to===null || D(rows[i].to)>=nf)
-      rows[i]=Object.assign({},rows[i],{to:iso(new Date(nf.getTime()-DAY)),autoclosed:true});
+      rows[i]=Object.assign({},rows[i],{to:iso(addDays(nf,-1)),autoclosed:true});
   }
   return rows.reverse();
 }
@@ -843,7 +848,7 @@ function splitPeriod(from,to){
       if(e.to) end=Math.min(end, D(e.to).getTime()); });
     const se=new Date(end);
     out.push({picks, from:new Date(cur), to:se, days:Math.round((se-cur)/DAY)+1});
-    cur=new Date(end+DAY);
+    cur=addDays(se,1);
   }
   return out;
 }
@@ -1947,7 +1952,7 @@ function getPeriod(){
        21/07", 58 ימים. ספירה כוללת של שני התאריכים נותנת 59 ויום עודף בכל
        הרכיבים היומיים. */
     if(a && b && a!==b){
-      const st=new Date(D(a).getTime()+DAY);
+      const st=addDays(D(a),1);
       return { from:st, to:D(b), kind:"derived", prevRead:a };
     }
     /* תאריך חסר, או שני תאריכים זהים (שתי קריאות שונות לא נלקחות באותו יום – כנראה תאריך שמירת הקבצים) */
@@ -2206,7 +2211,7 @@ function backupImport(ev){
 }
 
 /* גרסה ותאריך עדכון – מוצגים במסך אודות */
-const APP_VERSION = "2.8", APP_DATE = "2026-10-07";
+const APP_VERSION = "2.9", APP_DATE = "2026-10-24";
 function refreshAll(){ renderRegistry(renderAudit().flagged); recalc(); }
 (function init(){
   $("meter-prev-block").innerHTML=meterBlockHTML("prev","קריאה קודמת");
